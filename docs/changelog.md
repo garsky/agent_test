@@ -4,6 +4,50 @@
 
 ---
 
+## [0.3.0] - 2026-05-06
+
+### Added
+- 完整原型实现 (38个文件, 2582行代码)
+- 数据模型层 (models/schemas.py)
+  - ConfidenceLevel, ErrorCategory, ValidationSeverity 枚举
+  - DiagnosisReport, DTSReviewReport, TimingCheckResult 数据结构
+  - CameraNode, LogError, Suggestion, ExperienceCase 数据类
+- 配置模块 (config/)
+  - settings.py: 全局配置，.env 文件加载
+  - llm_config.py: LLM 工厂模式，支持 MiniMax/OpenAI/Anthropic/DeepSeek/Ollama
+- 平台管理模块 (platform/)
+  - context.py: Vendor/SubPlatform/Project/PlatformContext 数据结构
+  - registry.py: 平台注册表 (高通/MTK/展锐 + 子平台)
+  - manager.py: 平台/项目管理器，知识库路由
+- 工具链 (tools/)
+  - log_analyzer.py: 内核日志分析，9类错误模式识别
+  - dts_parser.py: 设备树解析，8项配置检查
+  - knowledge_search.py: 知识库检索 (ChromaDB + 文件回退)
+  - timing_checker.py: MIPI CSI Timing 参数校验
+  - code_analyzer.py: 代码片段常见问题检查
+  - web_searcher.py: 联网搜索 (DuckDuckGo)
+- Agent 核心 (agent/)
+  - core.py: CameraDriverAgent 主类，ReAct Agent 编排
+  - prompts.py: 动态 System Prompt 生成 (平台感知)
+  - memory.py: 对话记忆管理
+- API 层 (api/server.py)
+  - FastAPI 服务，平台管理/对话/LLM配置接口
+- CLI 入口 (main.py)
+  - 交互式平台选择，对话循环
+  - 支持 serve 模式启动 API 服务
+- 知识库 (knowledge/)
+  - MTK MT6985 平台文档: camera_arch/sensor_bringup/dts_config/common_errors/mipi_timing
+  - 知识库构建脚本 (builder.py)
+  - 高通/展锐目录预留
+- 测试 (tests/)
+  - test_log_analyzer.py: 日志分析工具测试
+  - test_dts_parser.py: DTS 解析工具测试
+  - test_platform_manager.py: 平台管理器测试
+- 项目配置
+  - pyproject.toml, requirements.txt, .env.example
+
+---
+
 ## [0.2.0] - 2026-05-06
 
 ### Changed
