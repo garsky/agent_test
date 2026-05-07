@@ -14,3 +14,15 @@ vectorstore_data/
 .vscode/
 *.swp
 *.swo
+
+.kb_manifest.json
+knowledge/*/vectorstore/
+knowledge/*/*/vectorstore/
+*.pdf
+*.docx
+*.pptx
+*.xlsx
+
+task_plan.md
+findings.md
+progress.md
