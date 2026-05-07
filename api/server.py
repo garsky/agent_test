@@ -93,21 +93,46 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 <script>
 let sessionId = null;
 const API = '';
+const FALLBACK_VENDORS = [
+  {id:'qualcomm', display_name:'高通 (Qualcomm)'},
+  {id:'mtk', display_name:'MTK (MediaTek)'},
+  {id:'unisoc', display_name:'展锐 (UNISOC)'}
+];
+const FALLBACK_SUB_PLATFORMS = {
+  qualcomm: [{id:'sm8550',display_name:'SM8550'},{id:'sm8650',display_name:'SM8650'},{id:'qcm4490',display_name:'QCM4490'}],
+  mtk: [{id:'mt6985',display_name:'MT6985 (24E)'},{id:'mt6989',display_name:'MT6989'},{id:'mt6897',display_name:'MT6897'}],
+  unisoc: [{id:'t820',display_name:'T820'},{id:'t770',display_name:'T770'},{id:'t750',display_name:'T750'}]
+};
 async function loadVendors() {
-  const r = await fetch(API+'/api/v1/platforms/vendors');
-  const vendors = await r.json();
+  try {
+    const r = await fetch(API+'/api/v1/platforms/vendors', {cache:'no-store'});
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const vendors = await r.json();
+    const sel = document.getElementById('vendor');
+    vendors.forEach(v => { const o = document.createElement('option'); o.value = v.id; o.textContent = v.display_name; sel.appendChild(o); });
+    if (vendors.length > 0) { document.getElementById('platformInfo').textContent='请选择平台厂商'; return; }
+  } catch(e) { console.warn('API failed, using fallback vendors:', e); }
   const sel = document.getElementById('vendor');
-  vendors.forEach(v => { const o = document.createElement('option'); o.value = v.id; o.textContent = v.display_name; sel.appendChild(o); });
+  FALLBACK_VENDORS.forEach(v => { const o = document.createElement('option'); o.value = v.id; o.textContent = v.display_name; sel.appendChild(o); });
+  document.getElementById('platformInfo').textContent='请选择平台厂商 (离线模式)';
 }
 async function loadSubPlatforms() {
   const vid = document.getElementById('vendor').value;
   if (!vid) return;
-  const r = await fetch(API+'/api/v1/platforms/vendors/'+vid+'/sub-platforms');
-  const sps = await r.json();
+  try {
+    const r = await fetch(API+'/api/v1/platforms/vendors/'+vid+'/sub-platforms', {cache:'no-store'});
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const sps = await r.json();
+    const sel = document.getElementById('subPlatform');
+    sel.innerHTML = '<option value="">选择子平台</option>';
+    sel.disabled = false;
+    sps.forEach(sp => { const o = document.createElement('option'); o.value = sp.id; o.textContent = sp.display_name; sel.appendChild(o); });
+    if (sps.length > 0) return;
+  } catch(e) { console.warn('API failed, using fallback sub-platforms:', e); }
   const sel = document.getElementById('subPlatform');
   sel.innerHTML = '<option value="">选择子平台</option>';
   sel.disabled = false;
-  sps.forEach(sp => { const o = document.createElement('option'); o.value = sp.id; o.textContent = sp.display_name; sel.appendChild(o); });
+  (FALLBACK_SUB_PLATFORMS[vid]||[]).forEach(sp => { const o = document.createElement('option'); o.value = sp.id; o.textContent = sp.display_name; sel.appendChild(o); });
 }
 async function createSession() {
   const vid = document.getElementById('vendor').value;
@@ -142,12 +167,12 @@ async function sendMessage() {
   document.getElementById('sendBtn').disabled = false;
 }
 function cleanResponse(text) {
-  text = text.replace(/<think[\s\S]*?<\/think>/gi, '');
-  text = text.replace(/```(\w*)\n/g, '<pre><code>');
+  text = text.replace(/<think[\\s\\S]*?<\\/think>/gi, '');
+  text = text.replace(/```(\\w*)\\n/g, '<pre><code>');
   text = text.replace(/```/g, '</code></pre>');
   text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-  text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  text = text.replace(/\n/g, '<br>');
+  text = text.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
+  text = text.replace(/\\n/g, '<br>');
   return text.trim() || '无响应';
 }
 let msgCounter = 0;
@@ -201,9 +226,19 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Camera Driver Agent API",
-        version="0.7.0",
+        version="0.7.1",
         description="AI Agent for Android Camera driver issue diagnosis",
     )
+
+    from fastapi.middleware.cors import CORSMiddleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     platform_manager = PlatformManager()
 
     @app.get("/", response_class=HTMLResponse)
