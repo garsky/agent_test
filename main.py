@@ -103,18 +103,19 @@ PLATFORM_HELP = """
 ║                                                          ║
 ║  命令:                                                    ║
 ║    platform list                        列出所有平台      ║
-║    platform add vendor <id> <显示名>     添加厂商         ║
-║    platform add sub <厂商> <id> <显示名> 添加子平台       ║
+║    platform add vendor <id> [显示名]     添加厂商         ║
+║    platform add sub <厂商> <id> [显示名] 添加子平台       ║
 ║    platform remove vendor <id>           移除厂商         ║
 ║    platform remove sub <厂商> <id>       移除子平台       ║
 ║                                                          ║
 ║  示例:                                                    ║
-║    platform add vendor xiaomi "小米 (Xiaomi)"            ║
-║    platform add sub xiaomi surya "Surya"                 ║
-║    platform remove sub xiaomi surya                      ║
-║    platform list                                         ║
+║    platform add vendor hisilicon                          ║
+║    platform add vendor hisilicon "海思 (HiSilicon)"      ║
+║    platform add sub hisilicon hi3660                      ║
+║    platform remove sub hisilicon hi3660                   ║
 ║                                                          ║
 ║  说明:                                                    ║
+║    - 显示名可选，不填时自动识别 (如 hisilicon→海思)       ║
 ║    - 内置厂商(高通/MTK/展锐)不可删除                      ║
 ║    - 添加后自动创建知识库目录                              ║
 ║    - 配置持久化到 knowledge/platforms.yaml                ║
@@ -154,22 +155,24 @@ def handle_platform_command(args: str) -> None:
             return
         target = parts[1]
         if target == "vendor":
-            if len(parts) < 4:
-                print("  用法: platform add vendor <id> <显示名>")
-                print('  示例: platform add vendor xiaomi "小米 (Xiaomi)"')
+            if len(parts) < 3:
+                print("  用法: platform add vendor <id> [显示名]")
+                print('  示例: platform add vendor hisilicon')
+                print('        platform add vendor hisilicon "海思 (HiSilicon)"')
                 return
             vid = _sanitize_id(parts[2])
-            display_name = " ".join(parts[3:]).strip('"').strip("'")
+            display_name = " ".join(parts[3:]).strip('"').strip("'") if len(parts) > 3 else ""
             result = manager.add_vendor(vid, display_name)
             print(f"  {result['message']}")
         elif target == "sub":
-            if len(parts) < 5:
-                print("  用法: platform add sub <厂商id> <子平台id> <显示名>")
-                print('  示例: platform add sub xiaomi surya "Surya"')
+            if len(parts) < 4:
+                print("  用法: platform add sub <厂商id> <子平台id> [显示名]")
+                print('  示例: platform add sub hisilicon hi3660')
+                print('        platform add sub hisilicon hi3660 "Hi3660"')
                 return
             vendor_id = parts[2]
             spid = _sanitize_id(parts[3])
-            display_name = " ".join(parts[4:]).strip('"').strip("'")
+            display_name = " ".join(parts[4:]).strip('"').strip("'") if len(parts) > 4 else ""
             result = manager.add_sub_platform(vendor_id, spid, display_name)
             print(f"  {result['message']}")
         else:

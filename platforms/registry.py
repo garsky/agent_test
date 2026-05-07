@@ -57,6 +57,30 @@ BUILTIN_REGISTRY: dict[str, VendorConfig] = {
 
 YAML_CONFIG_FILENAME = "platforms.yaml"
 
+VENDOR_DISPLAY_NAMES: dict[str, str] = {
+    "qualcomm": "高通 (Qualcomm)",
+    "mtk": "MTK (MediaTek)",
+    "mediatek": "MTK (MediaTek)",
+    "unisoc": "展锐 (UNISOC)",
+    "spreadtrum": "展锐 (UNISOC)",
+    "hisilicon": "海思 (HiSilicon)",
+    "hi-silicon": "海思 (HiSilicon)",
+    "huawei": "华为 (Huawei)",
+    "samsung": "三星 (Samsung)",
+    "exynos": "三星 Exynos",
+    "xiaomi": "小米 (Xiaomi)",
+    "google": "谷歌 (Google)",
+    "nvidia": "英伟达 (NVIDIA)",
+    "tegra": "英伟达 Tegra",
+}
+
+
+def _get_vendor_display_name(vendor_id: str) -> str:
+    if vendor_id in VENDOR_DISPLAY_NAMES:
+        return VENDOR_DISPLAY_NAMES[vendor_id]
+    name = vendor_id.replace('_', ' ').title()
+    return f"{name} ({vendor_id.upper()})"
+
 
 def _sanitize_id(name: str) -> str:
     return re.sub(r'[^a-z0-9_]', '_', name.lower()).strip('_')
@@ -179,7 +203,7 @@ class PlatformRegistry:
                 continue
             if vid not in self._vendors:
                 self._vendors[vid] = VendorConfig(
-                    id=vid, name=vid, display_name=vid,
+                    id=vid, name=vid, display_name=_get_vendor_display_name(vid),
                 )
             removed_sps = self._removed_sub_platforms.get(vid, set())
             for sub_item in item.iterdir():
@@ -248,9 +272,11 @@ class PlatformRegistry:
         (base / "vectorstore").mkdir(parents=True, exist_ok=True)
         (base / "projects").mkdir(parents=True, exist_ok=True)
 
-    def add_vendor(self, vendor_id: str, display_name: str) -> dict:
+    def add_vendor(self, vendor_id: str, display_name: str = "") -> dict:
         if vendor_id in self._vendors:
             return {"status": "exists", "message": f"厂商 {vendor_id} 已存在"}
+        if not display_name:
+            display_name = _get_vendor_display_name(vendor_id)
         self._vendors[vendor_id] = VendorConfig(
             id=vendor_id, name=vendor_id, display_name=display_name,
         )
@@ -260,12 +286,14 @@ class PlatformRegistry:
         self._save_yaml_config()
         return {"status": "ok", "message": f"已添加厂商: {display_name} ({vendor_id})"}
 
-    def add_sub_platform(self, vendor_id: str, sub_platform_id: str, display_name: str) -> dict:
+    def add_sub_platform(self, vendor_id: str, sub_platform_id: str, display_name: str = "") -> dict:
         if vendor_id not in self._vendors:
             return {"status": "error", "message": f"厂商 {vendor_id} 不存在"}
         vendor = self._vendors[vendor_id]
         if sub_platform_id in vendor.sub_platforms:
             return {"status": "exists", "message": f"子平台 {sub_platform_id} 已存在"}
+        if not display_name:
+            display_name = sub_platform_id.upper()
         vendor.sub_platforms[sub_platform_id] = SubPlatformConfig(
             id=sub_platform_id, display_name=display_name,
         )
