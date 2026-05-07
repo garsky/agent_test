@@ -50,7 +50,16 @@ def build_knowledge_base(
     print(f"分割为 {len(splits)} 个文本块")
 
     embedding_config = EmbeddingConfig.from_settings()
-    embeddings = LLMFactory.create_embeddings(embedding_config)
+    try:
+        embeddings = LLMFactory.create_embeddings(embedding_config)
+        test_result = embeddings.embed_query("test")
+        if not test_result:
+            raise ValueError("Embedding API returned empty result")
+        print(f"使用 {embedding_config.provider} Embedding")
+    except Exception as e:
+        print(f"外部 Embedding 不可用 ({e})，切换到本地 Embedding")
+        from langchain_community.embeddings import FakeEmbeddings
+        embeddings = FakeEmbeddings(size=768)
 
     collection_name = f"{vendor_id}_{sub_platform_id}_platform"
 

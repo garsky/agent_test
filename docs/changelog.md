@@ -4,6 +4,22 @@
 
 ---
 
+## [0.3.1] - 2026-05-06
+
+### Fixed
+- Pydantic v2 兼容性: `class Config` → `model_config = ConfigDict(...)`
+- `platform/` 目录重命名为 `platforms/`，避免与 Python 标准库 `platform` 模块冲突
+- 日志分析工具增强上下文感知: 错误行附近有 Camera 关键字也会被捕获
+- 日志分析工具增加错误提示关键字识别 (failed/NACK/timeout/overflow 等)
+- Agent Core 从 `langchain.agents` 迁移到 `langgraph.prebuilt.create_react_agent`
+
+### Added
+- 依赖安装成功 (Python 3.14 + 阿里云镜像)
+- langgraph 依赖
+- 18 个单元测试全部通过
+
+---
+
 ## [0.3.0] - 2026-05-06
 
 ### Added
