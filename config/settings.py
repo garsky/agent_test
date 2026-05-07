@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     MINIMAX_API_KEY: str = ""
     MINIMAX_GROUP_ID: str = ""
-    MINIMAX_MODEL: str = "MiniMax-Text-01"
+    MINIMAX_MODEL: str = "MiniMax-M2"
     MINIMAX_BASE_URL: str = "https://api.minimax.chat/v1"
 
     OPENAI_API_KEY: str = ""

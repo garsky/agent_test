@@ -77,7 +77,7 @@ class LLMFactory:
             from langchain_openai import ChatOpenAI
 
             default_models = {
-                "minimax": "MiniMax-Text-01",
+                "minimax": "MiniMax-M2",
                 "openai": "gpt-4",
                 "deepseek": "deepseek-chat",
             }
