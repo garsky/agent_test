@@ -1,6 +1,0 @@
-vendors:
-  xiaomi:
-    display_name: Xiaomi
-    sub_platforms:
-      surya:
-        display_name: Surya

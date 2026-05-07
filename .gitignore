@@ -16,13 +16,18 @@ vectorstore_data/
 *.swo
 
 .kb_manifest.json
-knowledge/common/vectorstore/
-knowledge/*/vectorstore/
-knowledge/*/*/vectorstore/
-*.pdf
-*.docx
-*.pptx
-*.xlsx
+
+knowledge/**/*.pdf
+knowledge/**/*.doc
+knowledge/**/*.docx
+knowledge/**/*.ppt
+knowledge/**/*.pptx
+knowledge/**/*.xls
+knowledge/**/*.xlsx
+knowledge/**/vectorstore/**
+!knowledge/**/vectorstore/.gitkeep
+knowledge/**/*.json
+knowledge/platforms.yaml
 
 task_plan.md
 findings.md
