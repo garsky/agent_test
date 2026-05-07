@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -150,6 +151,7 @@ class LLMFactory:
         elif provider == "local":
             from langchain_huggingface import HuggingFaceEmbeddings
 
+            os.environ.setdefault("HF_HUB_OFFLINE", "1")
             return HuggingFaceEmbeddings(
                 model_name=config.model or "shibing624/text2vec-base-chinese",
             )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -50,6 +51,7 @@ def build_knowledge_base(
     print(f"分割为 {len(splits)} 个文本块")
 
     embedding_config = EmbeddingConfig.from_settings()
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
     try:
         embeddings = LLMFactory.create_embeddings(embedding_config)
         test_result = embeddings.embed_query("test")
