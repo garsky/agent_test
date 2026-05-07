@@ -65,12 +65,28 @@ def _sanitize_id(name: str) -> str:
 class PlatformRegistry:
     def __init__(self, knowledge_base_dir: Optional[str] = None):
         self._knowledge_base_dir = Path(knowledge_base_dir or settings.KNOWLEDGE_BASE_DIR)
-        self._vendors: dict[str, VendorConfig] = dict(BUILTIN_REGISTRY)
+        self._vendors: dict[str, VendorConfig] = {}
         self._projects: dict[str, list[dict]] = {}
         self._removed_vendors: set[str] = set()
         self._removed_sub_platforms: dict[str, set[str]] = {}
+        self._load_builtin_registry()
         self._load_yaml_config()
         self._discover_from_directory()
+
+    def _load_builtin_registry(self) -> None:
+        for vid, vendor in BUILTIN_REGISTRY.items():
+            vendor_dir = self._knowledge_base_dir / vid
+            if not vendor_dir.exists():
+                continue
+            sps = {}
+            for spid, sp in vendor.sub_platforms.items():
+                sp_dir = vendor_dir / spid
+                if sp_dir.exists():
+                    sps[spid] = SubPlatformConfig(id=sp.id, display_name=sp.display_name)
+            self._vendors[vid] = VendorConfig(
+                id=vendor.id, name=vendor.name,
+                display_name=vendor.display_name, sub_platforms=sps,
+            )
 
     def _get_yaml_path(self) -> Path:
         return self._knowledge_base_dir / YAML_CONFIG_FILENAME
