@@ -213,7 +213,16 @@ def select_platform() -> tuple[str, str, str]:
     print("请选择平台厂商:")
     for i, v in enumerate(vendors, 1):
         print(f"  [{i}] {v['display_name']}")
-    vendor_idx = int(input("\n> ")) - 1
+    print("  [q] 退出")
+    raw = input("\n> ").strip().lower()
+    if raw in ("q", "quit", "exit"):
+        print("再见！")
+        sys.exit(0)
+    try:
+        vendor_idx = int(raw) - 1
+    except ValueError:
+        print("无效输入，请输入数字")
+        sys.exit(1)
     if vendor_idx < 0 or vendor_idx >= len(vendors):
         print("无效选择")
         sys.exit(1)
@@ -223,7 +232,16 @@ def select_platform() -> tuple[str, str, str]:
     print(f"\n请选择子平台:")
     for i, sp in enumerate(sub_platforms, 1):
         print(f"  [{i}] {sp['display_name']}")
-    sp_idx = int(input("\n> ")) - 1
+    print("  [q] 退出")
+    raw = input("\n> ").strip().lower()
+    if raw in ("q", "quit", "exit"):
+        print("再见！")
+        sys.exit(0)
+    try:
+        sp_idx = int(raw) - 1
+    except ValueError:
+        print("无效输入，请输入数字")
+        sys.exit(1)
     if sp_idx < 0 or sp_idx >= len(sub_platforms):
         print("无效选择")
         sys.exit(1)
