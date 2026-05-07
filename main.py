@@ -46,10 +46,27 @@ HELP_TEXT = """
 ║  知识库:                                                  ║
 ║    kb add <文件>   添加文档到当前平台知识库               ║
 ║      支持: .md .txt .pdf .docx .pptx .xlsx               ║
+║      kb add <文件> --global   添加到全局通用              ║
+║      kb add <文件> --vendor   添加到厂商公共              ║
 ║    kb update      检测变更并增量更新索引 (推荐)           ║
 ║    kb list        查看知识库文件列表 (含所有层级)         ║
 ║    kb build       全量重建向量索引                        ║
 ║    kb search <词> 搜索知识库内容                          ║
+║                                                          ║
+║  平台管理:                                                ║
+║    platform add vendor <id> [显示名]   添加厂商           ║
+║      例: platform add vendor hisilicon                    ║
+║          platform add vendor hisilicon "海思"             ║
+║    platform add sub <厂商> <id> [显示名] 添加子平台       ║
+║      例: platform add sub hisilicon hi3660                ║
+║    platform remove vendor <id>         移除厂商           ║
+║    platform remove sub <厂商> <id>     移除子平台         ║
+║    platform list                       列出所有平台       ║
+║                                                          ║
+║  说明:                                                    ║
+║    - 显示名可选，不填自动识别 (hisilicon→海思)            ║
+║    - 内置厂商(高通/MTK/展锐)不可删除                      ║
+║    - 加密PDF自动解密 (密码在.env配置)                     ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
 """
