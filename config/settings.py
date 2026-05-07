@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     AGENT_TEMPERATURE: float = 0.1
 
     MINIMAX_API_KEY: str = ""
+    MINIMAX_GROUP_ID: str = ""
     MINIMAX_MODEL: str = "MiniMax-Text-01"
     MINIMAX_BASE_URL: str = "https://api.minimax.chat/v1"
 
