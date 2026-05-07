@@ -61,17 +61,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
   <div class="sidebar">
     <h3>平台选择</h3>
     <select id="vendor" onchange="loadSubPlatforms()"><option value="">选择平台厂商</option></select>
-    <select id="subPlatform" onchange="loadProjects()" disabled><option value="">选择子平台</option></select>
-    <select id="project" disabled><option value="">选择项目</option></select>
+    <select id="subPlatform" disabled><option value="">选择子平台</option></select>
     <button onclick="createSession()">连接</button>
     <div class="hint">
       提问技巧:<br>
       1. 附上平台信息<br>
       2. 粘贴关键日志<br>
-      3. 上传DTS/代码<br>
-      4. 指定问题类型<br>
+      3. 指定问题类型<br>
       <br>
-      命令: help / kb / config
+      知识库管理 (CLI):<br>
+      kb add &lt;文件&gt; 添加文档<br>
+      kb list 查看文件列表<br>
+      kb build 重建索引<br>
+      kb search &lt;词&gt; 搜索<br>
+      <br>
+      文件格式: .md / .txt<br>
+      添加后需 kb build 生效
     </div>
   </div>
   <div class="chat-area">
@@ -100,28 +105,12 @@ async function loadSubPlatforms() {
   sel.innerHTML = '<option value="">选择子平台</option>';
   sel.disabled = false;
   sps.forEach(sp => { const o = document.createElement('option'); o.value = sp.id; o.textContent = sp.display_name; sel.appendChild(o); });
-  document.getElementById('project').innerHTML = '<option value="">选择项目</option>';
-  document.getElementById('project').disabled = true;
-}
-async function loadProjects() {
-  const vid = document.getElementById('vendor').value;
-  const spid = document.getElementById('subPlatform').value;
-  if (!spid) return;
-  const r = await fetch(API+'/api/v1/platforms/sub-platforms/'+spid+'/projects?vendor_id='+vid);
-  const projects = await r.json();
-  const sel = document.getElementById('project');
-  sel.innerHTML = '<option value="">选择项目</option>';
-  sel.disabled = false;
-  projects.forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o); });
-  const o = document.createElement('option'); o.value = '__new__'; o.textContent = '+ 新建项目'; sel.appendChild(o);
 }
 async function createSession() {
   const vid = document.getElementById('vendor').value;
   const spid = document.getElementById('subPlatform').value;
-  let pid = document.getElementById('project').value;
   if (!vid || !spid) { alert('请选择平台和子平台'); return; }
-  if (pid === '__new__') { pid = prompt('请输入项目名称:'); if (!pid) return; }
-  if (!pid) { alert('请选择项目'); return; }
+  const pid = '1';
   const r = await fetch(API+'/api/v1/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({vendor_id:vid, sub_platform_id:spid, project_id:pid})});
   const data = await r.json();
   if (r.ok) {
