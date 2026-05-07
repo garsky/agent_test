@@ -36,8 +36,9 @@ HELP_TEXT = """
 ║                                                          ║
 ║  知识库:                                                  ║
 ║    kb add <文件>   添加文档到当前平台知识库               ║
+║    kb update      检测变更并增量更新索引 (推荐)           ║
 ║    kb list        查看知识库文件列表                      ║
-║    kb build       重建向量索引                            ║
+║    kb build       全量重建向量索引                        ║
 ║    kb search <词> 搜索知识库内容                          ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
@@ -50,8 +51,9 @@ KB_HELP = """
 ║                                                          ║
 ║  命令:                                                    ║
 ║    kb add <文件路径>    添加知识库文件到当前平台            ║
+║    kb update           检测变更并增量更新索引 (推荐)       ║
 ║    kb list             列出当前平台的知识库文件            ║
-║    kb build            重新构建向量索引                    ║
+║    kb build            全量重建向量索引                    ║
 ║    kb search <关键词>   搜索知识库内容                     ║
 ║                                                          ║
 ║  文件格式要求:                                            ║
@@ -164,7 +166,24 @@ def handle_kb_command(args: str, platform_context) -> None:
         shutil.copy2(str(src), str(dst))
         print(f"  已添加: {src.name}")
         print(f"  存储到: {dst}")
-        print(f"  下一步: 运行 'kb build' 重建向量索引")
+        print(f"  下一步: 运行 'kb update' 增量更新索引")
+
+    elif sub_cmd == "update":
+        print("  正在检测知识库变更...")
+        try:
+            from knowledge.builder import update_knowledge_base
+            result = update_knowledge_base(
+                platform_context.vendor.id,
+                platform_context.sub_platform.id,
+            )
+            if result.get("status") == "up_to_date":
+                print("  知识库已是最新")
+            elif result.get("status") == "updated":
+                print(f"  更新完成: +{result.get('new',0)} 修改{result.get('changed',0)} -{result.get('deleted',0)}")
+            else:
+                print(f"  更新结果: {result}")
+        except Exception as e:
+            print(f"  更新失败: {e}")
 
     elif sub_cmd == "build":
         print("  正在构建向量索引...")
