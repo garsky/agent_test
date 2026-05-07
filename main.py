@@ -8,7 +8,7 @@ load_dotenv()
 
 WELCOME_BANNER = """
 ╔══════════════════════════════════════════════════════════╗
-║        Camera Driver Agent (CDA) v0.5.0                  ║
+║        Camera Driver Agent (CDA) v0.5.1                  ║
 ║        手机 Camera 驱动工程师智能助手                     ║
 ╚══════════════════════════════════════════════════════════╝
 """
@@ -166,7 +166,19 @@ def handle_kb_command(args: str, platform_context) -> None:
         shutil.copy2(str(src), str(dst))
         print(f"  已添加: {src.name}")
         print(f"  存储到: {dst}")
-        print(f"  下一步: 运行 'kb update' 增量更新索引")
+        print(f"  正在自动更新索引...")
+        try:
+            from knowledge.builder import update_knowledge_base
+            result = update_knowledge_base(
+                platform_context.vendor.id,
+                platform_context.sub_platform.id,
+            )
+            if result.get("status") == "up_to_date":
+                print("  索引已是最新")
+            elif result.get("status") == "updated":
+                print(f"  索引更新完成: +{result.get('new',0)} 修改{result.get('changed',0)} -{result.get('deleted',0)}")
+        except Exception as e:
+            print(f"  自动更新索引失败: {e}，请手动运行 'kb update'")
 
     elif sub_cmd == "update":
         print("  正在检测知识库变更...")
@@ -237,6 +249,23 @@ def run_cli():
     context = manager.set_context(vendor_id, sub_platform_id, project_id)
 
     print(f"\n  已进入: {context.vendor.display_name} / {context.sub_platform.display_name}")
+
+    print("\n  正在检测知识库变更...")
+    try:
+        from knowledge.builder import update_knowledge_base
+        result = update_knowledge_base(
+            context.vendor.id,
+            context.sub_platform.id,
+        )
+        if result.get("status") == "up_to_date":
+            print("  知识库已是最新")
+        elif result.get("status") == "updated":
+            print(f"  知识库已更新: +{result.get('new',0)} 修改{result.get('changed',0)} -{result.get('deleted',0)}")
+        elif result.get("status") == "error":
+            print(f"  知识库检测跳过: {result.get('message', '未知错误')}")
+    except Exception as e:
+        print(f"  知识库检测跳过: {e}")
+
     print()
     print("  快速入门:")
     print("    help     - 查看完整帮助")

@@ -4,6 +4,66 @@
 
 ---
 
+## [0.5.1] - 2026-05-07
+
+### Changed
+- `kb add` 添加文件后自动增量更新索引，无需再手动 `kb update`
+- CLI 启动时自动检测知识库变更，有新文档自动索引
+- Web API 创建 session 时自动检测知识库变更
+
+### Added
+- Web API 知识库管理接口: `POST /api/v1/kb/{vendor_id}/{sub_platform_id}/update`
+- Web API 知识库文件列表接口: `GET /api/v1/kb/{vendor_id}/{sub_platform_id}/list`
+- Web 侧边栏增加 `kb update` 提示
+
+---
+
+## [0.5.0] - 2026-05-07
+
+### Added
+- `kb update` 命令: 增量知识库更新，基于 MD5 文件哈希清单检测变更
+  - 自动检测新增/修改/删除的文档文件
+  - 增量更新 ChromaDB 向量索引（仅处理变更部分）
+  - 清单文件 `.kb_manifest.json` 记录文件哈希状态
+- 隐藏项目选择（默认 project_id="1"）
+- CLI 帮助交互增强: WELCOME_BANNER、HELP_TEXT、KB_HELP
+- 知识库文档添加规则和指导说明
+- `knowledge/builder.py` 支持 `--update` 命令行参数
+
+---
+
+## [0.4.2] - 2026-05-06
+
+### Fixed
+- 设置 `HF_HUB_OFFLINE=1` 防止 HuggingFace 连接超时
+
+---
+
+## [0.4.1] - 2026-05-06
+
+### Fixed
+- Web UI 添加加载指示器 ("思考中...")
+- Web UI 清理 `<think/>` 标签，避免显示原始思考过程
+- Web UI 支持 Markdown 渲染 (代码块/加粗)
+- Web UI 监听地址从 `0.0.0.0` 改为 `127.0.0.1` (Windows 兼容)
+
+---
+
+## [0.4.0] - 2026-05-06
+
+### Added
+- CLI 命令: `help` / `kb` / `config` 交互增强
+- Web 聊天界面 (嵌入式 HTML，暗色主题)
+- MiniMax Embedding 自定义实现 (GroupId URL 参数 + type=db body 参数)
+- 本地 Embedding 支持 (sentence-transformers/shibing624/text2vec-base-chinese)
+- Embedding 提供商可切换 (minimax/local)，默认 local
+
+### Fixed
+- `langchain_community.vectorstores.Chroma` 迁移到 `langchain_chroma.Chroma`
+- Embedding 配置 `from_settings()` 添加 `local` 分支
+
+---
+
 ## [0.3.1] - 2026-05-06
 
 ### Fixed

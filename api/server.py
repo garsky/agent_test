@@ -72,11 +72,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
       知识库管理 (CLI):<br>
       kb add &lt;文件&gt; 添加文档<br>
       kb list 查看文件列表<br>
+      kb update 增量更新索引<br>
       kb build 重建索引<br>
       kb search &lt;词&gt; 搜索<br>
       <br>
       文件格式: .md / .txt<br>
-      添加后需 kb build 生效
+      添加后自动更新索引
     </div>
   </div>
   <div class="chat-area">
@@ -198,7 +199,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Camera Driver Agent API",
-        version="0.4.0",
+        version="0.5.1",
         description="AI Agent for Android Camera driver issue diagnosis",
     )
     platform_manager = PlatformManager()
@@ -230,7 +231,20 @@ def create_app() -> FastAPI:
             agent = CameraDriverAgent(context)
             session_id = f"{req.vendor_id}_{req.sub_platform_id}_{req.project_id}"
             agents[session_id] = agent
-            return {"session_id": session_id, "platform": context.display_string}
+
+            kb_status = None
+            try:
+                from knowledge.builder import update_knowledge_base
+                result = update_knowledge_base(req.vendor_id, req.sub_platform_id)
+                kb_status = result
+            except Exception:
+                pass
+
+            return {
+                "session_id": session_id,
+                "platform": context.display_string,
+                "kb_update": kb_status,
+            }
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -256,6 +270,28 @@ def create_app() -> FastAPI:
     @app.put("/api/v1/config/llm")
     async def update_llm_config(req: LLMConfigRequest):
         return {"status": "ok", "message": "LLM配置已更新，新会话将使用新配置"}
+
+    @app.post("/api/v1/kb/{vendor_id}/{sub_platform_id}/update")
+    async def kb_update(vendor_id: str, sub_platform_id: str):
+        try:
+            from knowledge.builder import update_knowledge_base
+            result = update_knowledge_base(vendor_id, sub_platform_id)
+            return result
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/v1/kb/{vendor_id}/{sub_platform_id}/list")
+    async def kb_list(vendor_id: str, sub_platform_id: str):
+        from pathlib import Path
+        from config.settings import settings
+        docs_dir = Path(settings.KNOWLEDGE_BASE_DIR) / vendor_id / sub_platform_id / "platform_docs"
+        if not docs_dir.exists():
+            return {"files": [], "directory": str(docs_dir)}
+        files = list(docs_dir.glob("*.md")) + list(docs_dir.glob("*.txt"))
+        return {
+            "files": [{"name": f.name, "size": f.stat().st_size} for f in files],
+            "directory": str(docs_dir),
+        }
 
     return app
 
