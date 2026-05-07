@@ -251,7 +251,7 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == "serve":
         import uvicorn
         from api.server import create_app
-        uvicorn.run(create_app(), host="0.0.0.0", port=8000)
+        uvicorn.run(create_app(), host="127.0.0.1", port=8000)
     else:
         run_cli()
 
