@@ -141,6 +141,13 @@ class LLMFactory:
                 base_url=config.base_url or "https://api.openai.com/v1",
             )
 
+        elif provider == "local":
+            from langchain_huggingface import HuggingFaceEmbeddings
+
+            return HuggingFaceEmbeddings(
+                model_name=config.model or "shibing624/text2vec-base-chinese",
+            )
+
         else:
             from langchain_community.embeddings import FakeEmbeddings
 
