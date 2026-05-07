@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Optional, Type
 
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from platform.context import PlatformContext
+
 
 
 COMMON_CODE_ISSUES = [
@@ -62,10 +62,9 @@ class CodeAnalyzerTool(BaseTool):
     description: str = "分析Camera驱动代码片段，检查常见问题"
     args_schema: Type[BaseModel] = CodeAnalyzerInput
 
-    platform_context: Optional[PlatformContext] = None
+    platform_context: object = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def _run(self, code_content: str, file_type: str = "c") -> str:
         issues = self._analyze(code_content, file_type)

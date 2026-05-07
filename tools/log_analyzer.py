@@ -1,14 +1,13 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 from collections import Counter
 from typing import Optional, Type
 
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from models.schemas import LogError, LogAnalysisResult, ErrorCategory
-from platform.context import PlatformContext
 
 
 CAMERA_KEYWORDS = re.compile(
@@ -71,6 +70,7 @@ ERROR_PATTERNS: dict[ErrorCategory, list[re.Pattern]] = {
 }
 
 LEVEL_PATTERN = re.compile(r"<(\d)>|\b(ERROR|ERR|WARN|WARNING|CRITICAL|EMERG|INFO|DEBUG)\b", re.IGNORECASE)
+ERROR_HINT_PATTERN = re.compile(r"\b(failed|failure|error|timeout|overflow|NACK|abort|fatal)\b", re.IGNORECASE)
 
 CONTEXT_LINES = 5
 
@@ -83,11 +83,9 @@ class LogAnalyzerTool(BaseTool):
     name: str = "log_analyzer"
     description: str = "分析内核日志，提取Camera相关错误信息"
     args_schema: Type[BaseModel] = LogAnalyzerInput
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    platform_context: Optional[PlatformContext] = None
-
-    class Config:
-        arbitrary_types_allowed = True
+    platform_context: object = None
 
     def _run(self, log_content: str) -> str:
         result = self._analyze(log_content)
@@ -96,13 +94,27 @@ class LogAnalyzerTool(BaseTool):
     def _analyze(self, log_content: str) -> LogAnalysisResult:
         lines = log_content.splitlines()
         errors: list[LogError] = []
+        camera_line_indices: set[int] = set()
 
         for i, line in enumerate(lines):
-            if not CAMERA_KEYWORDS.search(line):
-                continue
+            if CAMERA_KEYWORDS.search(line):
+                camera_line_indices.add(i)
 
+        for i, line in enumerate(lines):
             level = self._extract_level(line)
+            is_error_hint = ERROR_HINT_PATTERN.search(line) is not None
+
             if level not in ("ERROR", "ERR", "WARN", "WARNING", "CRITICAL", "EMERG", "2", "3"):
+                if not is_error_hint:
+                    continue
+                level = "ERROR"
+
+            is_camera_line = CAMERA_KEYWORDS.search(line)
+            near_camera = any(
+                j in camera_line_indices
+                for j in range(max(0, i - CONTEXT_LINES), min(len(lines), i + CONTEXT_LINES + 1))
+            )
+            if not is_camera_line and not near_camera:
                 continue
 
             category = self._classify_line(line)

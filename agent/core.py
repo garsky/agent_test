@@ -1,50 +1,14 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Optional
 
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.language_models.chat_models import BaseChatModel
+from langgraph.prebuilt import create_react_agent
 
 from agent.prompts import build_system_prompt
 from agent.memory import AgentMemory
 from config.llm_config import LLMConfig, LLMFactory
-from platform.context import PlatformContext
-from platform.manager import PlatformManager
-
-
-REACT_PROMPT_TEMPLATE = """{system_prompt}
-
-**IMPORTANT: When you need to use a tool, you MUST format your response as:**
-```
-Action: tool_name
-Action Input: {{"param": "value"}}
-```
-
-**After receiving the tool result, provide your final answer with:**
-```
-Final Answer: your detailed answer here
-```
-
-You have access to the following tools:
-
-{tools}
-
-Use the following format:
-
-Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
-
-Begin!
-
-Question: {input}
-Thought: {agent_scratchpad}"""
+from platforms.context import PlatformContext
 
 
 class CameraDriverAgent:
@@ -59,7 +23,7 @@ class CameraDriverAgent:
         self._max_iterations = max_iterations
         self._llm: Optional[BaseChatModel] = None
         self._memory = AgentMemory(platform_context)
-        self._agent_executor: Optional[AgentExecutor] = None
+        self._graph = None
 
     def _get_llm(self) -> BaseChatModel:
         if self._llm is None:
@@ -83,71 +47,64 @@ class CameraDriverAgent:
             WebSearcherTool(platform_context=self._platform_context),
         ]
 
-    def _build_agent(self) -> AgentExecutor:
-        if self._agent_executor is not None:
-            return self._agent_executor
+    def _build_agent(self):
+        if self._graph is not None:
+            return self._graph
 
         llm = self._get_llm()
         tools = self._get_tools()
-
         system_prompt = build_system_prompt(self._platform_context)
 
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", REACT_PROMPT_TEMPLATE.format(system_prompt=system_prompt, tools="{tools}", tool_names="{tool_names}", input="{input}", agent_scratchpad="{agent_scratchpad}")),
-            MessagesPlaceholder("chat_history", optional=True),
-            ("human", "{input}"),
-            ("assistant", "{agent_scratchpad}"),
-        ])
-
-        agent = create_react_agent(llm, tools, prompt)
-        self._agent_executor = AgentExecutor(
-            agent=agent,
+        self._graph = create_react_agent(
+            model=llm,
             tools=tools,
-            max_iterations=self._max_iterations,
-            verbose=True,
-            handle_parsing_errors=True,
+            prompt=system_prompt,
         )
-        return self._agent_executor
+        return self._graph
 
     async def chat(self, message: str) -> str:
         self._memory.add_user_message(message)
-        agent_executor = self._build_agent()
+        graph = self._build_agent()
 
-        chat_history = self._memory.get_messages()
+        result = await graph.ainvoke(
+            {"messages": [("user", message)]},
+        )
 
-        result = await agent_executor.ainvoke({
-            "input": message,
-            "chat_history": chat_history,
-        })
+        messages = result.get("messages", [])
+        if messages:
+            response = messages[-1].content
+        else:
+            response = "抱歉，无法生成回复"
 
-        response = result.get("output", "抱歉，无法生成回复")
         self._memory.add_ai_message(response)
         return response
 
     def chat_sync(self, message: str) -> str:
         self._memory.add_user_message(message)
-        agent_executor = self._build_agent()
+        graph = self._build_agent()
 
-        chat_history = self._memory.get_messages()
+        result = graph.invoke(
+            {"messages": [("user", message)]},
+        )
 
-        result = agent_executor.invoke({
-            "input": message,
-            "chat_history": chat_history,
-        })
+        messages = result.get("messages", [])
+        if messages:
+            response = messages[-1].content
+        else:
+            response = "抱歉，无法生成回复"
 
-        response = result.get("output", "抱歉，无法生成回复")
         self._memory.add_ai_message(response)
         return response
 
     def set_platform_context(self, context: PlatformContext) -> None:
         self._platform_context = context
         self._memory = AgentMemory(context)
-        self._agent_executor = None
+        self._graph = None
         self._llm = None
 
     def reset_conversation(self) -> None:
         self._memory.clear()
-        self._agent_executor = None
+        self._graph = None
 
     @property
     def platform_context(self) -> PlatformContext:

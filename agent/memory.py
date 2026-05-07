@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Optional
 
@@ -6,7 +6,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 
-from platform.context import PlatformContext
+from platforms.context import PlatformContext
 
 
 class AgentMemory:

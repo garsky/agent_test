@@ -1,13 +1,13 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 from typing import Optional, Type
 
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from models.schemas import CameraNode, ValidationIssue, DTSReviewReport, ValidationSeverity
-from platform.context import PlatformContext
+
 
 
 KNOWN_SENSORS: dict[str, list[str]] = {
@@ -39,10 +39,9 @@ class DTSParserTool(BaseTool):
     description: str = "解析设备树文件，检查Camera节点配置的完整性和正确性"
     args_schema: Type[BaseModel] = DTSParserInput
 
-    platform_context: Optional[PlatformContext] = None
+    platform_context: object = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def _run(self, dts_content: str) -> str:
         result = self._analyze(dts_content)

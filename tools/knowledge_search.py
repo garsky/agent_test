@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Optional, Type
 
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from platform.context import PlatformContext
+
 
 
 class KnowledgeSearchInput(BaseModel):
@@ -17,11 +17,10 @@ class KnowledgeSearchTool(BaseTool):
     description: str = "检索当前平台知识库中的Camera驱动相关文档"
     args_schema: Type[BaseModel] = KnowledgeSearchInput
 
-    platform_context: Optional[PlatformContext] = None
+    platform_context: object = None
     _retriever = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def _run(self, query: str) -> str:
         retriever = self._get_retriever()

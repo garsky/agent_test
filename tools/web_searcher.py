@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Optional, Type
 
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from platform.context import PlatformContext
+
 
 
 class WebSearchInput(BaseModel):
@@ -17,10 +17,9 @@ class WebSearcherTool(BaseTool):
     description: str = "联网搜索Camera驱动问题的最新解决方案"
     args_schema: Type[BaseModel] = WebSearchInput
 
-    platform_context: Optional[PlatformContext] = None
+    platform_context: object = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def _run(self, query: str) -> str:
         try:

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import sys
 
@@ -8,7 +8,7 @@ load_dotenv()
 
 
 def select_platform() -> tuple[str, str, str]:
-    from platform.manager import PlatformManager
+    from platforms.manager import PlatformManager
 
     manager = PlatformManager()
 
@@ -60,7 +60,7 @@ def select_platform() -> tuple[str, str, str]:
 
 
 def run_cli():
-    from platform.manager import PlatformManager
+    from platforms.manager import PlatformManager
     from agent.core import CameraDriverAgent
 
     vendor_id, sub_platform_id, project_id = select_platform()

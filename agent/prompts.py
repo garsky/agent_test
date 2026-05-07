@@ -1,6 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-from platform.context import PlatformContext
+from platforms.context import PlatformContext
 
 
 SYSTEM_PROMPT_TEMPLATE = """你是一位资深的 {vendor_display_name} Camera 驱动工程师，专注于 {sub_platform_display_name} 平台。
@@ -41,7 +41,7 @@ SYSTEM_PROMPT_TEMPLATE = """你是一位资深的 {vendor_display_name} Camera �
 
 
 def build_system_prompt(context: PlatformContext, platform_knowledge: str = "") -> str:
-    from platform.manager import PlatformManager
+    from platforms.manager import PlatformManager
 
     manager = PlatformManager()
     knowledge = platform_knowledge or manager.get_platform_prompt_context(context)

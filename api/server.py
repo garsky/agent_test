@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from platform.manager import PlatformManager
+from platforms.manager import PlatformManager
 from agent.core import CameraDriverAgent
 from config.llm_config import LLMConfig
 

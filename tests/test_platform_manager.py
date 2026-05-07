@@ -1,5 +1,5 @@
-import pytest
-from platform.manager import PlatformManager
+﻿import pytest
+from platforms.manager import PlatformManager
 
 
 class TestPlatformManager:

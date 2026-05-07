@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Optional, Type
 
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from models.schemas import TimingCheckResult
-from platform.context import PlatformContext
+
 
 
 MIPI_TIMING_DEFAULTS: dict[str, dict] = {
@@ -60,10 +60,9 @@ class TimingCheckerTool(BaseTool):
     description: str = "校验MIPI CSI Timing参数是否符合规范"
     args_schema: Type[BaseModel] = TimingCheckInput
 
-    platform_context: Optional[PlatformContext] = None
+    platform_context: object = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def _run(
         self,

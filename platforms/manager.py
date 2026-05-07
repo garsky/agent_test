@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
 
-from platform.context import Vendor, SubPlatform, Project, PlatformContext
-from platform.registry import PlatformRegistry, get_registry
+from platforms.context import Vendor, SubPlatform, Project, PlatformContext
+from platforms.registry import PlatformRegistry, get_registry
 from config.settings import settings
 
 
