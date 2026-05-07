@@ -63,6 +63,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
     <select id="vendor" onchange="loadSubPlatforms()"><option value="">选择平台厂商</option></select>
     <select id="subPlatform" disabled><option value="">选择子平台</option></select>
     <button onclick="createSession()">连接</button>
+    <hr style="border-color:#0f3460;margin:10px 0">
+    <h3>添加平台</h3>
+    <input id="newVendorId" placeholder="厂商ID (如 xiaomi)" style="width:100%;padding:6px;margin-bottom:4px;border-radius:4px;border:1px solid #0f3460;background:#1a1a2e;color:#e0e0e0;font-size:12px">
+    <input id="newVendorName" placeholder="显示名 (如 小米)" style="width:100%;padding:6px;margin-bottom:4px;border-radius:4px;border:1px solid #0f3460;background:#1a1a2e;color:#e0e0e0;font-size:12px">
+    <button onclick="addVendor()" style="background:#0f3460;font-size:12px">添加厂商</button>
+    <div id="addSubSection" style="display:none;margin-top:8px">
+      <input id="newSubId" placeholder="子平台ID (如 surya)" style="width:100%;padding:6px;margin-bottom:4px;border-radius:4px;border:1px solid #0f3460;background:#1a1a2e;color:#e0e0e0;font-size:12px">
+      <input id="newSubName" placeholder="显示名 (如 Surya)" style="width:100%;padding:6px;margin-bottom:4px;border-radius:4px;border:1px solid #0f3460;background:#1a1a2e;color:#e0e0e0;font-size:12px">
+      <button onclick="addSubPlatform()" style="background:#0f3460;font-size:12px">添加子平台</button>
+    </div>
     <div class="hint">
       提问技巧:<br>
       1. 附上平台信息<br>
@@ -195,6 +205,33 @@ function removeMsg(id) {
   if (el) el.remove();
 }
 loadVendors();
+async function addVendor() {
+  const vid = document.getElementById('newVendorId').value.trim();
+  const dname = document.getElementById('newVendorName').value.trim();
+  if (!vid || !dname) { alert('请输入厂商ID和显示名'); return; }
+  try {
+    const r = await fetch(API+'/api/v1/platforms/vendors', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({vendor_id:vid, display_name:dname})});
+    const data = await r.json();
+    if (r.ok) { alert('添加成功'); document.getElementById('newVendorId').value=''; document.getElementById('newVendorName').value=''; loadVendors(); }
+    else { alert('添加失败: '+data.detail); }
+  } catch(e) { alert('网络错误: '+e.message); }
+}
+async function addSubPlatform() {
+  const vid = document.getElementById('vendor').value;
+  const spid = document.getElementById('newSubId').value.trim();
+  const dname = document.getElementById('newSubName').value.trim();
+  if (!vid) { alert('请先选择厂商'); return; }
+  if (!spid || !dname) { alert('请输入子平台ID和显示名'); return; }
+  try {
+    const r = await fetch(API+'/api/v1/platforms/sub-platforms', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({vendor_id:vid, sub_platform_id:spid, display_name:dname})});
+    const data = await r.json();
+    if (r.ok) { alert('添加成功'); document.getElementById('newSubId').value=''; document.getElementById('newSubName').value=''; loadSubPlatforms(); }
+    else { alert('添加失败: '+data.detail); }
+  } catch(e) { alert('网络错误: '+e.message); }
+}
+document.getElementById('vendor').addEventListener('change', function() {
+  document.getElementById('addSubSection').style.display = this.value ? 'block' : 'none';
+});
 </script>
 </body>
 </html>"""
@@ -226,7 +263,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Camera Driver Agent API",
-        version="0.7.1",
+        version="1.0.0",
         description="AI Agent for Android Camera driver issue diagnosis",
     )
 
@@ -252,6 +289,47 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/platforms/vendors/{vendor_id}/sub-platforms")
     async def get_sub_platforms(vendor_id: str):
         return platform_manager.get_sub_platforms(vendor_id)
+
+    class VendorAddRequest(BaseModel):
+        vendor_id: str
+        display_name: str
+
+    class SubPlatformAddRequest(BaseModel):
+        vendor_id: str
+        sub_platform_id: str
+        display_name: str
+
+    @app.post("/api/v1/platforms/vendors")
+    async def add_vendor(req: VendorAddRequest):
+        from platforms.registry import _sanitize_id
+        vid = _sanitize_id(req.vendor_id)
+        result = platform_manager.add_vendor(vid, req.display_name)
+        if result["status"] == "error":
+            raise HTTPException(status_code=400, detail=result["message"])
+        return result
+
+    @app.post("/api/v1/platforms/sub-platforms")
+    async def add_sub_platform(req: SubPlatformAddRequest):
+        from platforms.registry import _sanitize_id
+        spid = _sanitize_id(req.sub_platform_id)
+        result = platform_manager.add_sub_platform(req.vendor_id, spid, req.display_name)
+        if result["status"] == "error":
+            raise HTTPException(status_code=400, detail=result["message"])
+        return result
+
+    @app.delete("/api/v1/platforms/vendors/{vendor_id}")
+    async def remove_vendor(vendor_id: str):
+        result = platform_manager.remove_vendor(vendor_id)
+        if result["status"] == "error":
+            raise HTTPException(status_code=400, detail=result["message"])
+        return result
+
+    @app.delete("/api/v1/platforms/vendors/{vendor_id}/sub-platforms/{sub_platform_id}")
+    async def remove_sub_platform(vendor_id: str, sub_platform_id: str):
+        result = platform_manager.remove_sub_platform(vendor_id, sub_platform_id)
+        if result["status"] == "error":
+            raise HTTPException(status_code=400, detail=result["message"])
+        return result
 
     @app.get("/api/v1/platforms/sub-platforms/{sub_platform_id}/projects")
     async def get_projects(vendor_id: str, sub_platform_id: str):

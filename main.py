@@ -8,7 +8,7 @@ load_dotenv()
 
 WELCOME_BANNER = """
 ╔══════════════════════════════════════════════════════════╗
-║        Camera Driver Agent (CDA) v0.7.1                  ║
+║        Camera Driver Agent (CDA) v1.0.0                  ║
 ║        手机 Camera 驱动工程师智能助手                     ║
 ╚══════════════════════════════════════════════════════════╝
 """
@@ -24,6 +24,7 @@ HELP_TEXT = """
 ║    switch     切换平台                                    ║
 ║    help       显示此帮助                                  ║
 ║    kb         知识库管理 (输入 kb 查看详情)               ║
+║    platform   平台管理 (输入 platform 查看详情)           ║
 ║    config     查看当前配置                                ║
 ║                                                          ║
 ║  提问技巧:                                                ║
@@ -94,6 +95,111 @@ KB_HELP = """
 """
 
 DEFAULT_PROJECT_ID = "1"
+
+PLATFORM_HELP = """
+╔══════════════════════════════════════════════════════════╗
+║                    平台管理                              ║
+╠══════════════════════════════════════════════════════════╣
+║                                                          ║
+║  命令:                                                    ║
+║    platform list                        列出所有平台      ║
+║    platform add vendor <id> <显示名>     添加厂商         ║
+║    platform add sub <厂商> <id> <显示名> 添加子平台       ║
+║    platform remove vendor <id>           移除厂商         ║
+║    platform remove sub <厂商> <id>       移除子平台       ║
+║                                                          ║
+║  示例:                                                    ║
+║    platform add vendor xiaomi "小米 (Xiaomi)"            ║
+║    platform add sub xiaomi surya "Surya"                 ║
+║    platform remove sub xiaomi surya                      ║
+║    platform list                                         ║
+║                                                          ║
+║  说明:                                                    ║
+║    - 内置厂商(高通/MTK/展锐)不可删除                      ║
+║    - 添加后自动创建知识库目录                              ║
+║    - 配置持久化到 knowledge/platforms.yaml                ║
+║    - knowledge/ 下已有目录会自动发现                      ║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝
+"""
+
+
+def handle_platform_command(args: str) -> None:
+    from platforms.registry import _sanitize_id
+    parts = args.strip().split()
+    if not parts:
+        print(PLATFORM_HELP)
+        return
+
+    from platforms.manager import PlatformManager
+    manager = PlatformManager()
+
+    sub_cmd = parts[0]
+
+    if sub_cmd == "list":
+        vendors = manager.get_vendors()
+        print("\n  已注册平台:")
+        for v in vendors:
+            sps = manager.get_sub_platforms(v["id"])
+            sp_names = ", ".join(sp["display_name"] for sp in sps) if sps else "无子平台"
+            print(f"    {v['display_name']} ({v['id']})")
+            print(f"      子平台: {sp_names}")
+        print()
+
+    elif sub_cmd == "add":
+        if len(parts) < 2:
+            print("  用法:")
+            print("    platform add vendor <id> <显示名>")
+            print("    platform add sub <厂商id> <子平台id> <显示名>")
+            return
+        target = parts[1]
+        if target == "vendor":
+            if len(parts) < 4:
+                print("  用法: platform add vendor <id> <显示名>")
+                print('  示例: platform add vendor xiaomi "小米 (Xiaomi)"')
+                return
+            vid = _sanitize_id(parts[2])
+            display_name = " ".join(parts[3:]).strip('"').strip("'")
+            result = manager.add_vendor(vid, display_name)
+            print(f"  {result['message']}")
+        elif target == "sub":
+            if len(parts) < 5:
+                print("  用法: platform add sub <厂商id> <子平台id> <显示名>")
+                print('  示例: platform add sub xiaomi surya "Surya"')
+                return
+            vendor_id = parts[2]
+            spid = _sanitize_id(parts[3])
+            display_name = " ".join(parts[4:]).strip('"').strip("'")
+            result = manager.add_sub_platform(vendor_id, spid, display_name)
+            print(f"  {result['message']}")
+        else:
+            print(f"  未知添加目标: {target}")
+            print("  支持: vendor / sub")
+
+    elif sub_cmd == "remove":
+        if len(parts) < 2:
+            print("  用法:")
+            print("    platform remove vendor <id>")
+            print("    platform remove sub <厂商id> <子平台id>")
+            return
+        target = parts[1]
+        if target == "vendor":
+            if len(parts) < 3:
+                print("  用法: platform remove vendor <id>")
+                return
+            result = manager.remove_vendor(parts[2])
+            print(f"  {result['message']}")
+        elif target == "sub":
+            if len(parts) < 4:
+                print("  用法: platform remove sub <厂商id> <子平台id>")
+                return
+            result = manager.remove_sub_platform(parts[2], parts[3])
+            print(f"  {result['message']}")
+        else:
+            print(f"  未知移除目标: {target}")
+
+    else:
+        print(PLATFORM_HELP)
 
 
 def select_platform() -> tuple[str, str, str]:
@@ -381,6 +487,9 @@ def run_cli():
             continue
         if cmd.startswith("kb"):
             handle_kb_command(user_input[2:].strip(), context)
+            continue
+        if cmd.startswith("platform"):
+            handle_platform_command(user_input[8:].strip())
             continue
         if cmd == "config":
             show_config(context)

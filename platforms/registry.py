@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -54,12 +55,98 @@ BUILTIN_REGISTRY: dict[str, VendorConfig] = {
     ),
 }
 
+YAML_CONFIG_FILENAME = "platforms.yaml"
+
+
+def _sanitize_id(name: str) -> str:
+    return re.sub(r'[^a-z0-9_]', '_', name.lower()).strip('_')
+
 
 class PlatformRegistry:
     def __init__(self, knowledge_base_dir: Optional[str] = None):
         self._knowledge_base_dir = Path(knowledge_base_dir or settings.KNOWLEDGE_BASE_DIR)
         self._vendors: dict[str, VendorConfig] = dict(BUILTIN_REGISTRY)
         self._projects: dict[str, list[dict]] = {}
+        self._load_yaml_config()
+        self._discover_from_directory()
+
+    def _get_yaml_path(self) -> Path:
+        return self._knowledge_base_dir / YAML_CONFIG_FILENAME
+
+    def _load_yaml_config(self) -> None:
+        yaml_path = self._get_yaml_path()
+        if not yaml_path.exists():
+            return
+        try:
+            import yaml
+            with open(yaml_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+            if not config or "vendors" not in config:
+                return
+            for vid, vdata in config["vendors"].items():
+                display_name = vdata.get("display_name", vid)
+                if vid in self._vendors:
+                    self._vendors[vid].display_name = display_name
+                else:
+                    self._vendors[vid] = VendorConfig(
+                        id=vid, name=vid, display_name=display_name,
+                    )
+                for spid, spdata in (vdata.get("sub_platforms") or {}).items():
+                    sp_display = spdata.get("display_name", spid) if isinstance(spdata, dict) else spdata
+                    self._vendors[vid].sub_platforms[spid] = SubPlatformConfig(
+                        id=spid, display_name=sp_display,
+                    )
+        except Exception as e:
+            print(f"  警告: 加载 {yaml_path} 失败: {e}")
+
+    def _save_yaml_config(self) -> None:
+        yaml_path = self._get_yaml_path()
+        yaml_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            import yaml
+            config = {"vendors": {}}
+            for vid, vendor in self._vendors.items():
+                if vid in BUILTIN_REGISTRY:
+                    continue
+                vdata: dict = {"display_name": vendor.display_name}
+                if vendor.sub_platforms:
+                    vdata["sub_platforms"] = {}
+                    for spid, sp in vendor.sub_platforms.items():
+                        builtin_sp = BUILTIN_REGISTRY.get(vid)
+                        if builtin_sp and spid in builtin_sp.sub_platforms:
+                            continue
+                        vdata["sub_platforms"][spid] = {"display_name": sp.display_name}
+                config["vendors"][vid] = vdata
+            with open(yaml_path, "w", encoding="utf-8") as f:
+                yaml.dump(config, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        except Exception as e:
+            print(f"  警告: 保存 {yaml_path} 失败: {e}")
+
+    def _discover_from_directory(self) -> None:
+        if not self._knowledge_base_dir.exists():
+            return
+        skip_dirs = {"common", "vectorstore", "__pycache__"}
+        skip_subs = {"common", "vectorstore", "projects", "platform_docs", "__pycache__"}
+        for item in self._knowledge_base_dir.iterdir():
+            if not item.is_dir():
+                continue
+            vid = item.name
+            if vid in skip_dirs or vid.startswith('.'):
+                continue
+            if vid not in self._vendors:
+                self._vendors[vid] = VendorConfig(
+                    id=vid, name=vid, display_name=vid,
+                )
+            for sub_item in item.iterdir():
+                if not sub_item.is_dir():
+                    continue
+                spid = sub_item.name
+                if spid in skip_subs or spid.startswith('.'):
+                    continue
+                if spid not in self._vendors[vid].sub_platforms:
+                    self._vendors[vid].sub_platforms[spid] = SubPlatformConfig(
+                        id=spid, display_name=spid,
+                    )
 
     def get_vendors(self) -> list[dict]:
         return [
@@ -115,6 +202,52 @@ class PlatformRegistry:
         (base / "platform_docs").mkdir(parents=True, exist_ok=True)
         (base / "vectorstore").mkdir(parents=True, exist_ok=True)
         (base / "projects").mkdir(parents=True, exist_ok=True)
+
+    def add_vendor(self, vendor_id: str, display_name: str) -> dict:
+        if vendor_id in self._vendors:
+            return {"status": "exists", "message": f"厂商 {vendor_id} 已存在"}
+        self._vendors[vendor_id] = VendorConfig(
+            id=vendor_id, name=vendor_id, display_name=display_name,
+        )
+        vendor_dir = self._knowledge_base_dir / vendor_id / "common" / "platform_docs"
+        vendor_dir.mkdir(parents=True, exist_ok=True)
+        self._save_yaml_config()
+        return {"status": "ok", "message": f"已添加厂商: {display_name} ({vendor_id})"}
+
+    def add_sub_platform(self, vendor_id: str, sub_platform_id: str, display_name: str) -> dict:
+        if vendor_id not in self._vendors:
+            return {"status": "error", "message": f"厂商 {vendor_id} 不存在"}
+        vendor = self._vendors[vendor_id]
+        if sub_platform_id in vendor.sub_platforms:
+            return {"status": "exists", "message": f"子平台 {sub_platform_id} 已存在"}
+        vendor.sub_platforms[sub_platform_id] = SubPlatformConfig(
+            id=sub_platform_id, display_name=display_name,
+        )
+        self.ensure_directories(vendor_id, sub_platform_id)
+        self._save_yaml_config()
+        return {"status": "ok", "message": f"已添加子平台: {display_name} ({sub_platform_id})"}
+
+    def remove_vendor(self, vendor_id: str) -> dict:
+        if vendor_id not in self._vendors:
+            return {"status": "error", "message": f"厂商 {vendor_id} 不存在"}
+        if vendor_id in BUILTIN_REGISTRY:
+            return {"status": "error", "message": f"内置厂商 {vendor_id} 不可删除"}
+        del self._vendors[vendor_id]
+        self._save_yaml_config()
+        return {"status": "ok", "message": f"已移除厂商: {vendor_id}"}
+
+    def remove_sub_platform(self, vendor_id: str, sub_platform_id: str) -> dict:
+        if vendor_id not in self._vendors:
+            return {"status": "error", "message": f"厂商 {vendor_id} 不存在"}
+        vendor = self._vendors[vendor_id]
+        if sub_platform_id not in vendor.sub_platforms:
+            return {"status": "error", "message": f"子平台 {sub_platform_id} 不存在"}
+        builtin = BUILTIN_REGISTRY.get(vendor_id)
+        if builtin and sub_platform_id in builtin.sub_platforms:
+            return {"status": "error", "message": f"内置子平台 {sub_platform_id} 不可删除"}
+        del vendor.sub_platforms[sub_platform_id]
+        self._save_yaml_config()
+        return {"status": "ok", "message": f"已移除子平台: {sub_platform_id}"}
 
 
 _registry: Optional[PlatformRegistry] = None

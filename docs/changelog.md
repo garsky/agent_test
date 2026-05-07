@@ -4,6 +4,43 @@
 
 ---
 
+## [1.0.0] - 2026-05-07
+
+### Added
+- 平台动态管理 (CLI + Web UI + YAML 配置 + 目录自动发现):
+  - CLI: `platform add vendor <id> <显示名>` 添加厂商
+  - CLI: `platform add sub <厂商> <id> <显示名>` 添加子平台
+  - CLI: `platform remove vendor <id>` 移除厂商 (内置不可删)
+  - CLI: `platform remove sub <厂商> <id>` 移除子平台 (内置不可删)
+  - CLI: `platform list` 列出所有已注册平台
+  - Web UI: 侧边栏添加"添加平台"区域 (厂商/子平台)
+  - Web API: `POST /api/v1/platforms/vendors` 添加厂商
+  - Web API: `POST /api/v1/platforms/sub-platforms` 添加子平台
+  - Web API: `DELETE /api/v1/platforms/vendors/{id}` 移除厂商
+  - Web API: `DELETE /api/v1/platforms/vendors/{vid}/sub-platforms/{spid}` 移除子平台
+- YAML 配置持久化: `knowledge/platforms.yaml` 存储自定义平台
+- 目录自动发现: 扫描 `knowledge/` 下已有目录自动注册平台
+- `_sanitize_id()`: 自动将输入转为合法 ID (小写+下划线)
+- 内置厂商 (高通/MTK/展锐) 保护: 不可删除内置平台
+
+### Changed
+- `PlatformRegistry.__init__()` 启动时加载 YAML + 自动发现
+- `_discover_from_directory()` 排除 `__pycache__`、`.` 开头目录
+- 帮助文本增加 `platform` 命令说明
+
+---
+
+## [0.7.1] - 2026-05-07
+
+### Fixed
+- Web UI 下拉菜单无选项: JS 正则表达式中 `\n` 被 Python 解释为换行符导致 JS 语法错误
+  - `cleanResponse()` 中所有正则表达式转义修正 (`\\s`, `\\S`, `\\w`, `\\n`, `\\*`)
+- Web UI `loadVendors()` / `loadSubPlatforms()` 添加 try-catch 错误处理
+- Web UI 添加 fallback 内置数据: API 请求失败时使用内置厂商/子平台列表
+- 添加 CORS 中间件支持跨域请求
+
+---
+
 ## [0.7.0] - 2026-05-07
 
 ### Added
