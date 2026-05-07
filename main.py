@@ -1,6 +1,10 @@
 ﻿from __future__ import annotations
 
 import sys
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="langgraph")
+warnings.filterwarnings("ignore", message=".*allowed_objects.*")
 
 from dotenv import load_dotenv
 
