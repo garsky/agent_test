@@ -92,6 +92,9 @@ class PlatformRegistry:
             if "vendors" not in config:
                 return
             for vid, vdata in config["vendors"].items():
+                vendor_dir = self._knowledge_base_dir / vid
+                if not vendor_dir.exists():
+                    continue
                 display_name = vdata.get("display_name", vid)
                 if vid in self._vendors:
                     self._vendors[vid].display_name = display_name
@@ -100,6 +103,9 @@ class PlatformRegistry:
                         id=vid, name=vid, display_name=display_name,
                     )
                 for spid, spdata in (vdata.get("sub_platforms") or {}).items():
+                    sp_dir = vendor_dir / spid
+                    if not sp_dir.exists():
+                        continue
                     sp_display = spdata.get("display_name", spid) if isinstance(spdata, dict) else spdata
                     self._vendors[vid].sub_platforms[spid] = SubPlatformConfig(
                         id=spid, display_name=sp_display,
@@ -135,6 +141,14 @@ class PlatformRegistry:
                 yaml.dump(config, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
         except Exception as e:
             print(f"  警告: 保存 {yaml_path} 失败: {e}")
+
+    def _has_real_content(self, directory: Path) -> bool:
+        if not directory.exists():
+            return False
+        for item in directory.rglob("*"):
+            if item.is_file() and item.name != ".gitkeep":
+                return True
+        return False
 
     def _discover_from_directory(self) -> None:
         if not self._knowledge_base_dir.exists():
