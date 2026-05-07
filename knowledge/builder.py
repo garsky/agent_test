@@ -51,6 +51,36 @@ def _get_embeddings():
         return FakeEmbeddings(size=768)
 
 
+def _auto_convert_docs(platform_docs_dir: Path) -> list[str]:
+    from knowledge.converter import is_convertible, is_direct, convert_to_markdown
+
+    converted = []
+    all_files = [f for f in platform_docs_dir.iterdir() if f.is_file()]
+
+    for f in all_files:
+        if is_convertible(f):
+            md_name = f.stem + ".md"
+            md_path = platform_docs_dir / md_name
+            need_convert = False
+            if not md_path.exists():
+                need_convert = True
+            elif md_path.stat().st_mtime < f.stat().st_mtime:
+                need_convert = True
+
+            if need_convert:
+                print(f"  自动转换: {f.name} -> {md_name}")
+                try:
+                    md_content, _ = convert_to_markdown(f)
+                    if md_content and md_content.strip():
+                        md_path.write_text(md_content, encoding="utf-8")
+                        converted.append(f.name)
+                    else:
+                        print(f"  警告: {f.name} 转换结果为空，跳过")
+                except Exception as e:
+                    print(f"  转换失败: {f.name}: {e}")
+    return converted
+
+
 def update_knowledge_base(
     vendor_id: str,
     sub_platform_id: str,
@@ -66,6 +96,10 @@ def update_knowledge_base(
 
     if not platform_docs_dir.exists():
         return {"status": "error", "message": f"文档目录不存在: {platform_docs_dir}"}
+
+    converted = _auto_convert_docs(platform_docs_dir)
+    if converted:
+        print(f"  已自动转换 {len(converted)} 个文档为 Markdown")
 
     manifest = _load_manifest(manifest_path)
     current_files: dict[str, str] = {}
@@ -197,6 +231,10 @@ def build_knowledge_base(
         print(f"文档目录不存在: {platform_docs_dir}")
         print("请先创建目录并放入文档文件")
         return
+
+    converted = _auto_convert_docs(platform_docs_dir)
+    if converted:
+        print(f"已自动转换 {len(converted)} 个文档为 Markdown")
 
     print(f"构建知识库: {vendor_id}/{sub_platform_id}")
     print(f"文档目录: {platform_docs_dir}")

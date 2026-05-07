@@ -71,13 +71,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
       <br>
       知识库管理 (CLI):<br>
       kb add &lt;文件&gt; 添加文档<br>
-      kb list 查看文件列表<br>
+      支持: .md .txt .pdf .docx<br>
+      .pptx .xlsx<br>
       kb update 增量更新索引<br>
       kb build 重建索引<br>
       kb search &lt;词&gt; 搜索<br>
       <br>
-      文件格式: .md / .txt<br>
-      添加后自动更新索引
+      文件格式: .md .txt .pdf<br>
+      .docx .pptx .xlsx<br>
+      自动转换并更新索引
     </div>
   </div>
   <div class="chat-area">
@@ -199,7 +201,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Camera Driver Agent API",
-        version="0.5.1",
+        version="0.6.0",
         description="AI Agent for Android Camera driver issue diagnosis",
     )
     platform_manager = PlatformManager()

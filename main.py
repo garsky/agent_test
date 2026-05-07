@@ -8,7 +8,7 @@ load_dotenv()
 
 WELCOME_BANNER = """
 ╔══════════════════════════════════════════════════════════╗
-║        Camera Driver Agent (CDA) v0.5.1                  ║
+║        Camera Driver Agent (CDA) v0.6.0                  ║
 ║        手机 Camera 驱动工程师智能助手                     ║
 ╚══════════════════════════════════════════════════════════╝
 """
@@ -36,6 +36,7 @@ HELP_TEXT = """
 ║                                                          ║
 ║  知识库:                                                  ║
 ║    kb add <文件>   添加文档到当前平台知识库               ║
+║      支持: .md .txt .pdf .docx .pptx .xlsx               ║
 ║    kb update      检测变更并增量更新索引 (推荐)           ║
 ║    kb list        查看知识库文件列表                      ║
 ║    kb build       全量重建向量索引                        ║
@@ -51,13 +52,15 @@ KB_HELP = """
 ║                                                          ║
 ║  命令:                                                    ║
 ║    kb add <文件路径>    添加知识库文件到当前平台            ║
+║      支持: .md .txt .pdf .docx .pptx .xlsx                ║
 ║    kb update           检测变更并增量更新索引 (推荐)       ║
 ║    kb list             列出当前平台的知识库文件            ║
 ║    kb build            全量重建向量索引                    ║
 ║    kb search <关键词>   搜索知识库内容                     ║
 ║                                                          ║
 ║  文件格式要求:                                            ║
-║    - 支持 .md (Markdown) / .txt (纯文本)                  ║
+║    - 直接添加: .md (Markdown) / .txt (纯文本)             ║
+║    - 自动转换: .pdf / .docx / .pptx / .xlsx               ║
 ║    - 建议使用 Markdown 格式，结构更清晰                    ║
 ║    - 文件编码: UTF-8                                      ║
 ║                                                          ║
@@ -144,28 +147,34 @@ def handle_kb_command(args: str, platform_context) -> None:
         if not sub_args:
             print("  用法: kb add <文件路径>")
             print("  示例: kb add ./my_sensor_guide.md")
+            print("        kb add ./report.pdf")
+            print("        kb add ./presentation.pptx")
             print()
-            print("  支持格式: .md / .txt (UTF-8编码)")
-            print("  添加后需运行 'kb build' 重建索引")
+            print("  支持格式:")
+            print("    直接添加: .md / .txt (UTF-8编码)")
+            print("    自动转换: .pdf / .docx / .pptx / .xlsx")
+            print("  添加后自动更新索引")
             return
         src = Path(sub_args.strip().strip('"').strip("'"))
         if not src.exists():
             print(f"  文件不存在: {src}")
             return
-        if src.suffix.lower() not in (".md", ".txt"):
+
+        from knowledge.converter import is_direct, is_convertible, process_file
+
+        if not is_direct(src) and not is_convertible(src):
             print(f"  不支持的格式: {src.suffix}")
-            print("  仅支持 .md / .txt 格式")
+            print("  支持: .md / .txt / .pdf / .docx / .pptx / .xlsx")
             return
+
         docs_dir.mkdir(parents=True, exist_ok=True)
-        dst = docs_dir / src.name
-        if dst.exists():
-            overwrite = input(f"  文件 {src.name} 已存在，是否覆盖? (y/n): ").strip().lower()
-            if overwrite != "y":
-                print("  已取消")
-                return
-        shutil.copy2(str(src), str(dst))
-        print(f"  已添加: {src.name}")
-        print(f"  存储到: {dst}")
+        result_path = process_file(src, docs_dir)
+        if result_path is None:
+            print(f"  添加失败")
+            return
+
+        print(f"  已添加: {src.name} -> {result_path.name}")
+        print(f"  存储到: {result_path}")
         print(f"  正在自动更新索引...")
         try:
             from knowledge.builder import update_knowledge_base
