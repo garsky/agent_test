@@ -63,7 +63,7 @@ def build_knowledge_base(
 
     collection_name = f"{vendor_id}_{sub_platform_id}_platform"
 
-    from langchain_community.vectorstores import Chroma
+    from langchain_chroma import Chroma
 
     vectorstore_dir.mkdir(parents=True, exist_ok=True)
     Chroma.from_documents(

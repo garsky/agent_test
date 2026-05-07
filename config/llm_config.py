@@ -62,7 +62,12 @@ class EmbeddingConfig:
                 model="text-embedding-3-small",
                 base_url=settings.OPENAI_BASE_URL,
             )
-        return cls(provider="minimax", api_key=settings.MINIMAX_API_KEY, model=settings.MINIMAX_EMBEDDING_MODEL, base_url=settings.MINIMAX_BASE_URL)
+        elif provider == "local":
+            return cls(
+                provider="local",
+                model="shibing624/text2vec-base-chinese",
+            )
+        return cls(provider="local", model="shibing624/text2vec-base-chinese")
 
 
 class LLMFactory:

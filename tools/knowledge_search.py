@@ -48,7 +48,7 @@ class KnowledgeSearchTool(BaseTool):
 
         try:
             import chromadb
-            from langchain_community.vectorstores import Chroma
+            from langchain_chroma import Chroma
             from config.llm_config import LLMFactory, EmbeddingConfig
 
             embedding_config = EmbeddingConfig.from_settings()

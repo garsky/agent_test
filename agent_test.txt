@@ -1,0 +1,133 @@
+Platform: MTK (MediaTek) / MT6985 (24E) / test_project
+
+Response:
+<think>
+知识库不可用，让我直接给出一个系统性的排查方案，基于我对MTK平台的了解。
+</think>
+
+## 系统性排查方案
+
+根据 MT6985 (24E) 平台的 Camera 驱动架构，I2C 通信失败通常有以下几类原因：
+
+---
+
+### 🔍 排查清单
+
+#### 1️⃣ 确认 Sensor I2C 地址配置
+
+**检查点：** 确认 device tree 和 sensor 驱动中的 I2C 地址一致
+
+```bash
+# 查看 kernel log 中的 I2C 地址信息
+dmesg | grep -i "i2c\|sensor\|imx"
+```
+
+**常见错误：**
+- 7-bit/8-bit 地址混淆
+- Sensor 数据手册地址 vs 驱动配置地址不一致
+
+```
+# 例如 IMX766 实际地址是 0x34 (8-bit) 或 0x1A (7-bit)
+# 驱动中需要用 7-bit 地址 0x1A
+```
+
+---
+
+#### 2️⃣ 电源域 (Power Domain) 配置
+
+**MTK 24E 平台关键：** 确认 VCAMA / CAMIO / CAMsensor 电源域已正确上电
+
+```bash
+# 检查电源域状态
+cat /sys/kernel/debug/camera/scp/scp_state
+cat /sys/kernel/debug/camera/power_state
+```
+
+**DTS 检查点：**
+```python
+# 检查是否包含正确的 power-domain 配置
+power-domains = <&scp_mgr SCP_VPU>;
+# 或
+power-domains = <&mysys>;
+```
+
+---
+
+#### 3️⃣ I2C 总线挂死排查
+
+**判断方法：**
+```bash
+# 尝试手动访问 I2C 总线
+i2cdetect -y -r <bus_id>
+
+# 如果显示 "UU" 表示设备存在但挂死
+# 如果没有任何响应，可能是硬件问题
+```
+
+**解死锁方法：**
+```bash
+# 手动发送 SCL 时钟脉冲释放 SDA
+# 或重启 I2C 控制器
+echo 1 > /sys/bus/i2c/devices/i2c-<bus>/rescan
+```
+
+---
+
+#### 4️⃣ GPIO/MIPI 引脚配置
+
+**检查 DTS 中的 pinmux 配置：**
+```bash
+# 查看当前引脚状态
+cat /sys/kernel/debug/pinctrl/pinctrl-rockchip*
+# 或者 MTK 平台
+cat /sys/kernel/debug/pinctrl/1000b000.pinctrl/*
+```
+
+**MTK 24E 典型 GPIO 配置 (DTS)：**
+```c
+/* Device Tree 中的 I2C 引脚配置 */
+&i2c0 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&cam_i2c_pins>;
+    status = "okay";
+    
+    cam_i2c_pins: cam_i2c_pins {
+        pins-i2c-scl, pins-i2c-sda {
+            pinmux = <MTK_PIN_TYPE>;
+            bias-pull-up = <MTK_PULL_UP>;
+        };
+    };
+};
+```
+
+---
+
+#### 5️⃣ Sensor 驱动加载时序
+
+**常见问题：** Sensor 驱动在 I2C 总线初始化前尝试访问
+
+```bash
+# 检查驱动加载顺序
+dmesg | grep -E "i2c|sensor|camera" | head -50
+```
+
+**检查点：**
+```c
+// driver 中 probe 顺序是否依赖 I2C 总线就绪
+static int imgsensor_probe(struct i2c_client *client)
+{
+    // 确保在这里之前 I2C 已经 ready
+    if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+        dev_err(&client->dev, "I2C check failed\n");
+        return -EIO;
+    }
+}
+```
+
+---
+
+#### 6️⃣ 详细日志抓取
+
+```bash
+# 开启 I2C debug 日志
+echo "file i2c
