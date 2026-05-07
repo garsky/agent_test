@@ -129,12 +129,13 @@ class LLMFactory:
         provider = config.provider
 
         if provider == "minimax":
-            from langchain_community.embeddings import MiniMaxEmbeddings
+            from config.minimax_embedding import MiniMaxCustomEmbeddings
 
-            return MiniMaxEmbeddings(
-                minimax_api_key=config.api_key,
-                minimax_group_id=settings.MINIMAX_GROUP_ID or None,
+            return MiniMaxCustomEmbeddings(
+                api_key=config.api_key,
+                group_id=settings.MINIMAX_GROUP_ID,
                 model=config.model or "embo-01",
+                base_url=config.base_url or "https://api.minimax.chat/v1",
             )
 
         elif provider == "openai":
