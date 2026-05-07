@@ -39,6 +39,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .msg { margin-bottom: 16px; max-width: 80%; }
 .msg.user { margin-left: auto; }
 .msg .bubble { padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+.msg .bubble pre { background: #0f0f23; padding: 10px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+.msg .bubble code { background: #0f0f23; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+.msg .bubble pre code { background: none; padding: 0; }
 .msg.user .bubble { background: #e94560; color: white; border-bottom-right-radius: 4px; }
 .msg.agent .bubble { background: #16213e; border: 1px solid #0f3460; border-bottom-left-radius: 4px; }
 .msg .label { font-size: 11px; color: #666; margin-bottom: 4px; }
@@ -137,19 +140,42 @@ async function sendMessage() {
   input.value = '';
   addMsg('user', msg);
   document.getElementById('sendBtn').disabled = true;
+  const loadingId = addMsg('agent', '思考中...');
   try {
     const r = await fetch(API+'/api/v1/sessions/'+sessionId+'/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg})});
     const data = await r.json();
-    addMsg('agent', data.response || '无响应');
-  } catch(e) { addMsg('agent', '错误: '+e.message); }
+    removeMsg(loadingId);
+    addMsg('agent', cleanResponse(data.response || '无响应'));
+  } catch(e) { removeMsg(loadingId); addMsg('agent', '错误: '+e.message); }
   document.getElementById('sendBtn').disabled = false;
 }
+function cleanResponse(text) {
+  text = text.replace(/<think[\s\S]*?<\/think>/gi, '');
+  text = text.replace(/```(\w*)\n/g, '<pre><code>');
+  text = text.replace(/```/g, '</code></pre>');
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+  text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\n/g, '<br>');
+  return text.trim() || '无响应';
+}
+let msgCounter = 0;
 function addMsg(role, text) {
+  const id = 'msg_' + (++msgCounter);
   const div = document.createElement('div');
   div.className = 'msg '+role;
-  div.innerHTML = '<div class="label">'+(role==='user'?'你':'Agent')+'</div><div class="bubble">'+text.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+  div.id = id;
+  if (role === 'agent' && text.includes('<')) {
+    div.innerHTML = '<div class="label">'+(role==='user'?'你':'Agent')+'</div><div class="bubble">'+text+'</div>';
+  } else {
+    div.innerHTML = '<div class="label">'+(role==='user'?'你':'Agent')+'</div><div class="bubble">'+text.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</div>';
+  }
   document.getElementById('messages').appendChild(div);
   document.getElementById('messages').scrollTop = 99999;
+  return id;
+}
+function removeMsg(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
 }
 loadVendors();
 </script>
