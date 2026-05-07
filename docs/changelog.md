@@ -4,6 +4,55 @@
 
 ---
 
+## [0.7.0] - 2026-05-07
+
+### Added
+- 知识库三级层级架构:
+  - `knowledge/common/` — 全局通用知识，所有平台共享
+  - `knowledge/<厂商>/common/` — 厂商公共知识，同一厂商多平台共享 (如 MTK 公共架构)
+  - `knowledge/<厂商>/<子平台>/` — 平台专属知识，仅当前子平台可见
+- `kb add` 支持指定目标层级:
+  - `kb add <文件>` — 默认添加到平台专属目录
+  - `kb add <文件> --global` — 添加到全局通用目录
+  - `kb add <文件> --vendor` — 添加到厂商公共目录
+- `kb list` 显示所有层级的知识库文件，标注来源层级和源文件
+- `kb update` 自动检测并更新三层知识库
+- `update_knowledge_base()` 重构: 依次更新全局→厂商→平台三层知识库
+- `_update_single_kb()` 独立的单层知识库更新函数
+- `_cleanup_orphan_md()` 自动清理孤立 MD 文件 (源文件删除后对应的转换 MD)
+- `get_all_doc_dirs()` / `get_all_vectorstore_dirs()` 获取三层知识库路径
+- `init_knowledge_dirs()` 初始化三层知识库目录结构
+- 知识检索合并三层结果，标注层级来源 (全局/厂商公共/平台)
+
+### Changed
+- `knowledge_search.py` 重构: `_multi_level_search()` 搜索三层向量库
+- `_fallback_search()` 搜索三层文档目录
+- 搜索结果标注层级标签: [全局] / [mtk公共] / [平台]
+- 帮助文本更新: 增加知识库层级说明
+
+---
+
+## [0.6.0] - 2026-05-07
+
+### Added
+- 文档格式自动转换: 支持 PDF / DOCX / PPTX / XLSX 自动转换为 Markdown
+  - 使用微软 MarkItDown 库 (GitHub 85k+ Stars)
+  - `kb add` 支持 PDF/DOCX/PPTX/XLSX 文件，自动转换后添加到知识库
+  - `kb update` 自动检测目录中的 PDF/DOCX/PPTX/XLSX，转换后增量索引
+  - `kb build` 全量构建时也自动转换
+  - 原始文件保留，转换后的 .md 文件与源文件同名
+- 新增 `knowledge/converter.py` 文档转换模块
+- 新增 `knowledge/builder.py` 中 `_auto_convert_docs()` 自动转换函数
+  - 基于文件修改时间判断是否需要重新转换
+  - 转换结果为空时跳过并提示
+
+### Changed
+- `kb add` 格式支持从 .md/.txt 扩展到 .pdf/.docx/.pptx/.xlsx
+- 帮助文本更新: 列出所有支持的文件格式
+- Web UI 侧边栏更新: 显示支持的文件格式
+
+---
+
 ## [0.5.1] - 2026-05-07
 
 ### Changed

@@ -201,7 +201,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Camera Driver Agent API",
-        version="0.6.0",
+        version="0.7.0",
         description="AI Agent for Android Camera driver issue diagnosis",
     )
     platform_manager = PlatformManager()

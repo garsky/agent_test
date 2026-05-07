@@ -16,6 +16,7 @@ vectorstore_data/
 *.swo
 
 .kb_manifest.json
+knowledge/common/vectorstore/
 knowledge/*/vectorstore/
 knowledge/*/*/vectorstore/
 *.pdf
