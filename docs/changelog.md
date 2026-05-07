@@ -4,6 +4,34 @@
 
 ---
 
+## [1.0.2] - 2026-05-07
+
+### Fixed
+- 删除子平台/厂商后重启 CLI 仍显示已删除项: 目录自动发现会重新注册磁盘上存在的目录
+  - 新增黑名单机制: `removed_vendors` / `removed_sub_platforms` 持久化到 `platforms.yaml`
+  - `_discover_from_directory()` 跳过黑名单中的厂商和子平台
+  - 重新添加时自动从黑名单中移除 (`discard`)
+
+---
+
+## [1.0.1] - 2026-05-07
+
+### Added
+- 加密 PDF 自动解密: 转换前自动检测加密并尝试解密
+  - 优先尝试空密码 (大多数 MTK/高通 PDF 仅限制权限，用户密码为空)
+  - 其次尝试 `.env` 中 `PDF_DEFAULT_PASSWORD` 配置的密码
+  - 解密后生成临时 PDF，转换完成后自动清理
+- `PDF_DEFAULT_PASSWORD` 配置项: 默认值 `1916691965`，可在 `.env` 中覆盖
+- `pypdf` 依赖: 用于 PDF 解密和重写
+- `_decrypt_pdf()`: 解密加密 PDF 并输出无加密临时文件
+- `_get_pdf_passwords()`: 获取密码列表 (空密码 + 配置密码)
+
+### Changed
+- `convert_to_markdown()` 增加 PDF 加密检测和解密步骤
+- 解密日志区分"空密码(仅权限限制)"和实际密码
+
+---
+
 ## [1.0.0] - 2026-05-07
 
 ### Added

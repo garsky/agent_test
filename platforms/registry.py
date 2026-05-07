@@ -67,6 +67,8 @@ class PlatformRegistry:
         self._knowledge_base_dir = Path(knowledge_base_dir or settings.KNOWLEDGE_BASE_DIR)
         self._vendors: dict[str, VendorConfig] = dict(BUILTIN_REGISTRY)
         self._projects: dict[str, list[dict]] = {}
+        self._removed_vendors: set[str] = set()
+        self._removed_sub_platforms: dict[str, set[str]] = {}
         self._load_yaml_config()
         self._discover_from_directory()
 
@@ -81,7 +83,13 @@ class PlatformRegistry:
             import yaml
             with open(yaml_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
-            if not config or "vendors" not in config:
+            if not config:
+                return
+            for vid in (config.get("removed_vendors") or []):
+                self._removed_vendors.add(vid)
+            for vid, spids in (config.get("removed_sub_platforms") or {}).items():
+                self._removed_sub_platforms[vid] = set(spids)
+            if "vendors" not in config:
                 return
             for vid, vdata in config["vendors"].items():
                 display_name = vdata.get("display_name", vid)
@@ -104,7 +112,7 @@ class PlatformRegistry:
         yaml_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             import yaml
-            config = {"vendors": {}}
+            config: dict = {"vendors": {}}
             for vid, vendor in self._vendors.items():
                 if vid in BUILTIN_REGISTRY:
                     continue
@@ -117,6 +125,12 @@ class PlatformRegistry:
                             continue
                         vdata["sub_platforms"][spid] = {"display_name": sp.display_name}
                 config["vendors"][vid] = vdata
+            if self._removed_vendors:
+                config["removed_vendors"] = sorted(self._removed_vendors)
+            if self._removed_sub_platforms:
+                config["removed_sub_platforms"] = {
+                    vid: sorted(spids) for vid, spids in self._removed_sub_platforms.items() if spids
+                }
             with open(yaml_path, "w", encoding="utf-8") as f:
                 yaml.dump(config, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
         except Exception as e:
@@ -131,17 +145,18 @@ class PlatformRegistry:
             if not item.is_dir():
                 continue
             vid = item.name
-            if vid in skip_dirs or vid.startswith('.'):
+            if vid in skip_dirs or vid.startswith('.') or vid in self._removed_vendors:
                 continue
             if vid not in self._vendors:
                 self._vendors[vid] = VendorConfig(
                     id=vid, name=vid, display_name=vid,
                 )
+            removed_sps = self._removed_sub_platforms.get(vid, set())
             for sub_item in item.iterdir():
                 if not sub_item.is_dir():
                     continue
                 spid = sub_item.name
-                if spid in skip_subs or spid.startswith('.'):
+                if spid in skip_subs or spid.startswith('.') or spid in removed_sps:
                     continue
                 if spid not in self._vendors[vid].sub_platforms:
                     self._vendors[vid].sub_platforms[spid] = SubPlatformConfig(
@@ -209,6 +224,7 @@ class PlatformRegistry:
         self._vendors[vendor_id] = VendorConfig(
             id=vendor_id, name=vendor_id, display_name=display_name,
         )
+        self._removed_vendors.discard(vendor_id)
         vendor_dir = self._knowledge_base_dir / vendor_id / "common" / "platform_docs"
         vendor_dir.mkdir(parents=True, exist_ok=True)
         self._save_yaml_config()
@@ -223,6 +239,8 @@ class PlatformRegistry:
         vendor.sub_platforms[sub_platform_id] = SubPlatformConfig(
             id=sub_platform_id, display_name=display_name,
         )
+        if vendor_id in self._removed_sub_platforms:
+            self._removed_sub_platforms[vendor_id].discard(sub_platform_id)
         self.ensure_directories(vendor_id, sub_platform_id)
         self._save_yaml_config()
         return {"status": "ok", "message": f"已添加子平台: {display_name} ({sub_platform_id})"}
@@ -233,6 +251,7 @@ class PlatformRegistry:
         if vendor_id in BUILTIN_REGISTRY:
             return {"status": "error", "message": f"内置厂商 {vendor_id} 不可删除"}
         del self._vendors[vendor_id]
+        self._removed_vendors.add(vendor_id)
         self._save_yaml_config()
         return {"status": "ok", "message": f"已移除厂商: {vendor_id}"}
 
@@ -246,6 +265,9 @@ class PlatformRegistry:
         if builtin and sub_platform_id in builtin.sub_platforms:
             return {"status": "error", "message": f"内置子平台 {sub_platform_id} 不可删除"}
         del vendor.sub_platforms[sub_platform_id]
+        if vendor_id not in self._removed_sub_platforms:
+            self._removed_sub_platforms[vendor_id] = set()
+        self._removed_sub_platforms[vendor_id].add(sub_platform_id)
         self._save_yaml_config()
         return {"status": "ok", "message": f"已移除子平台: {sub_platform_id}"}
 
