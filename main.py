@@ -222,6 +222,26 @@ def handle_platform_command(args: str) -> None:
         print(PLATFORM_HELP)
 
 
+def _read_choice(prompt: str, max_val: int) -> int | None:
+    while True:
+        raw = input(prompt).strip().lower()
+        if raw in ("q", "quit", "exit"):
+            print("再见！")
+            sys.exit(0)
+        if raw in ("h", "help"):
+            print(HELP_TEXT)
+            continue
+        try:
+            idx = int(raw) - 1
+        except ValueError:
+            print("  无效输入，请输入数字 (h=帮助, q=退出)")
+            continue
+        if idx < 0 or idx >= max_val:
+            print("  无效选择，请重新输入")
+            continue
+        return idx
+
+
 def select_platform() -> tuple[str, str, str]:
     from platforms.manager import PlatformManager
 
@@ -233,38 +253,18 @@ def select_platform() -> tuple[str, str, str]:
     print("请选择平台厂商:")
     for i, v in enumerate(vendors, 1):
         print(f"  [{i}] {v['display_name']}")
-    print("  [q] 退出")
-    raw = input("\n> ").strip().lower()
-    if raw in ("q", "quit", "exit"):
-        print("再见！")
-        sys.exit(0)
-    try:
-        vendor_idx = int(raw) - 1
-    except ValueError:
-        print("无效输入，请输入数字")
-        sys.exit(1)
-    if vendor_idx < 0 or vendor_idx >= len(vendors):
-        print("无效选择")
-        sys.exit(1)
+    print("  [h] 帮助  [q] 退出")
+
+    vendor_idx = _read_choice("\n> ", len(vendors))
     vendor_id = vendors[vendor_idx]["id"]
 
     sub_platforms = manager.get_sub_platforms(vendor_id)
     print(f"\n请选择子平台:")
     for i, sp in enumerate(sub_platforms, 1):
         print(f"  [{i}] {sp['display_name']}")
-    print("  [q] 退出")
-    raw = input("\n> ").strip().lower()
-    if raw in ("q", "quit", "exit"):
-        print("再见！")
-        sys.exit(0)
-    try:
-        sp_idx = int(raw) - 1
-    except ValueError:
-        print("无效输入，请输入数字")
-        sys.exit(1)
-    if sp_idx < 0 or sp_idx >= len(sub_platforms):
-        print("无效选择")
-        sys.exit(1)
+    print("  [h] 帮助  [q] 退出")
+
+    sp_idx = _read_choice("\n> ", len(sub_platforms))
     sub_platform_id = sub_platforms[sp_idx]["id"]
 
     return vendor_id, sub_platform_id, DEFAULT_PROJECT_ID
