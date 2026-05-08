@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
@@ -24,6 +24,18 @@ class PlatformManager:
 
     def create_project(self, vendor_id: str, sub_platform_id: str, project_name: str) -> dict:
         return self._registry.create_project(vendor_id, sub_platform_id, project_name)
+
+    def add_vendor(self, vendor_id: str, display_name: str) -> dict:
+        return self._registry.add_vendor(vendor_id, display_name)
+
+    def add_sub_platform(self, vendor_id: str, sub_platform_id: str, display_name: str) -> dict:
+        return self._registry.add_sub_platform(vendor_id, sub_platform_id, display_name)
+
+    def remove_vendor(self, vendor_id: str) -> dict:
+        return self._registry.remove_vendor(vendor_id)
+
+    def remove_sub_platform(self, vendor_id: str, sub_platform_id: str) -> dict:
+        return self._registry.remove_sub_platform(vendor_id, sub_platform_id)
 
     def set_context(self, vendor_id: str, sub_platform_id: str, project_id: str) -> PlatformContext:
         vendor_cfg = self._registry.get_vendor_config(vendor_id)

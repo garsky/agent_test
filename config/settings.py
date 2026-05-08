@@ -36,6 +36,8 @@ class Settings(BaseSettings):
 
     KNOWLEDGE_BASE_DIR: str = str(Path(__file__).parent.parent / "knowledge")
 
+    PDF_DEFAULT_PASSWORD: str = "1916691965"
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

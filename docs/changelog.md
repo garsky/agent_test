@@ -4,6 +4,141 @@
 
 ---
 
+## [1.0.3] - 2026-05-07
+
+### Added
+- CLI Tab 补全: 输入命令时按 Tab 自动补全
+  - 支持所有内置命令补全 (quit/reset/switch/help/config/kb/platform)
+  - `kb add` 后按 Tab 补全文件名和路径 (支持 .md/.txt/.pdf/.docx/.pptx/.xlsx)
+  - `kb` / `platform` 后按 Tab 补全子命令
+  - 依赖 `pyreadline3` (Windows) / `readline` (Linux/Mac)
+- 知识库无匹配时的回答策略优化:
+  - 搜索无匹配时返回知识库文档清单，便于 Agent 引用已有文档
+  - System Prompt 增加"无匹配回答规范": 禁止猜测、说明知识范畴、引用已有文档、指出缺失文档、给出排查方向
+
+### Fixed
+- `LangChainPendingDeprecationWarning` 警告抑制: 显式导入 `LangChainPendingDeprecationWarning` 并过滤
+
+---
+
+## [1.0.2] - 2026-05-07
+
+### Fixed
+- 删除子平台/厂商后重启 CLI 仍显示已删除项: 目录自动发现会重新注册磁盘上存在的目录
+  - 新增黑名单机制: `removed_vendors` / `removed_sub_platforms` 持久化到 `platforms.yaml`
+  - `_discover_from_directory()` 跳过黑名单中的厂商和子平台
+  - 重新添加时自动从黑名单中移除 (`discard`)
+- YAML 配置加载时检查目录存在性: 本地目录已删除的厂商/子平台不再从 `platforms.yaml` 加载
+- 内置注册表加载时检查目录存在性: `_load_builtin_registry()` 只注册磁盘上实际存在的子平台
+  - 修复 MTK 显示3个子平台但磁盘只有 mt6985 的问题
+- `.gitignore` 更新: 排除 knowledge 下的数据文件(PDF/DOCX/vectorstore/platforms.yaml)，保留手写MD和目录结构(.gitkeep)
+
+---
+
+## [1.0.1] - 2026-05-07
+
+### Added
+- 加密 PDF 自动解密: 转换前自动检测加密并尝试解密
+  - 优先尝试空密码 (大多数 MTK/高通 PDF 仅限制权限，用户密码为空)
+  - 其次尝试 `.env` 中 `PDF_DEFAULT_PASSWORD` 配置的密码
+  - 解密后生成临时 PDF，转换完成后自动清理
+- `PDF_DEFAULT_PASSWORD` 配置项: 默认值 `1916691965`，可在 `.env` 中覆盖
+- `pypdf` 依赖: 用于 PDF 解密和重写
+- `_decrypt_pdf()`: 解密加密 PDF 并输出无加密临时文件
+- `_get_pdf_passwords()`: 获取密码列表 (空密码 + 配置密码)
+
+### Changed
+- `convert_to_markdown()` 增加 PDF 加密检测和解密步骤
+- 解密日志区分"空密码(仅权限限制)"和实际密码
+
+---
+
+## [1.0.0] - 2026-05-07
+
+### Added
+- 平台动态管理 (CLI + Web UI + YAML 配置 + 目录自动发现):
+  - CLI: `platform add vendor <id> <显示名>` 添加厂商
+  - CLI: `platform add sub <厂商> <id> <显示名>` 添加子平台
+  - CLI: `platform remove vendor <id>` 移除厂商 (内置不可删)
+  - CLI: `platform remove sub <厂商> <id>` 移除子平台 (内置不可删)
+  - CLI: `platform list` 列出所有已注册平台
+  - Web UI: 侧边栏添加"添加平台"区域 (厂商/子平台)
+  - Web API: `POST /api/v1/platforms/vendors` 添加厂商
+  - Web API: `POST /api/v1/platforms/sub-platforms` 添加子平台
+  - Web API: `DELETE /api/v1/platforms/vendors/{id}` 移除厂商
+  - Web API: `DELETE /api/v1/platforms/vendors/{vid}/sub-platforms/{spid}` 移除子平台
+- YAML 配置持久化: `knowledge/platforms.yaml` 存储自定义平台
+- 目录自动发现: 扫描 `knowledge/` 下已有目录自动注册平台
+- `_sanitize_id()`: 自动将输入转为合法 ID (小写+下划线)
+- 内置厂商 (高通/MTK/展锐) 保护: 不可删除内置平台
+
+### Changed
+- `PlatformRegistry.__init__()` 启动时加载 YAML + 自动发现
+- `_discover_from_directory()` 排除 `__pycache__`、`.` 开头目录
+- 帮助文本增加 `platform` 命令说明
+
+---
+
+## [0.7.1] - 2026-05-07
+
+### Fixed
+- Web UI 下拉菜单无选项: JS 正则表达式中 `\n` 被 Python 解释为换行符导致 JS 语法错误
+  - `cleanResponse()` 中所有正则表达式转义修正 (`\\s`, `\\S`, `\\w`, `\\n`, `\\*`)
+- Web UI `loadVendors()` / `loadSubPlatforms()` 添加 try-catch 错误处理
+- Web UI 添加 fallback 内置数据: API 请求失败时使用内置厂商/子平台列表
+- 添加 CORS 中间件支持跨域请求
+
+---
+
+## [0.7.0] - 2026-05-07
+
+### Added
+- 知识库三级层级架构:
+  - `knowledge/common/` — 全局通用知识，所有平台共享
+  - `knowledge/<厂商>/common/` — 厂商公共知识，同一厂商多平台共享 (如 MTK 公共架构)
+  - `knowledge/<厂商>/<子平台>/` — 平台专属知识，仅当前子平台可见
+- `kb add` 支持指定目标层级:
+  - `kb add <文件>` — 默认添加到平台专属目录
+  - `kb add <文件> --global` — 添加到全局通用目录
+  - `kb add <文件> --vendor` — 添加到厂商公共目录
+- `kb list` 显示所有层级的知识库文件，标注来源层级和源文件
+- `kb update` 自动检测并更新三层知识库
+- `update_knowledge_base()` 重构: 依次更新全局→厂商→平台三层知识库
+- `_update_single_kb()` 独立的单层知识库更新函数
+- `_cleanup_orphan_md()` 自动清理孤立 MD 文件 (源文件删除后对应的转换 MD)
+- `get_all_doc_dirs()` / `get_all_vectorstore_dirs()` 获取三层知识库路径
+- `init_knowledge_dirs()` 初始化三层知识库目录结构
+- 知识检索合并三层结果，标注层级来源 (全局/厂商公共/平台)
+
+### Changed
+- `knowledge_search.py` 重构: `_multi_level_search()` 搜索三层向量库
+- `_fallback_search()` 搜索三层文档目录
+- 搜索结果标注层级标签: [全局] / [mtk公共] / [平台]
+- 帮助文本更新: 增加知识库层级说明
+
+---
+
+## [0.6.0] - 2026-05-07
+
+### Added
+- 文档格式自动转换: 支持 PDF / DOCX / PPTX / XLSX 自动转换为 Markdown
+  - 使用微软 MarkItDown 库 (GitHub 85k+ Stars)
+  - `kb add` 支持 PDF/DOCX/PPTX/XLSX 文件，自动转换后添加到知识库
+  - `kb update` 自动检测目录中的 PDF/DOCX/PPTX/XLSX，转换后增量索引
+  - `kb build` 全量构建时也自动转换
+  - 原始文件保留，转换后的 .md 文件与源文件同名
+- 新增 `knowledge/converter.py` 文档转换模块
+- 新增 `knowledge/builder.py` 中 `_auto_convert_docs()` 自动转换函数
+  - 基于文件修改时间判断是否需要重新转换
+  - 转换结果为空时跳过并提示
+
+### Changed
+- `kb add` 格式支持从 .md/.txt 扩展到 .pdf/.docx/.pptx/.xlsx
+- 帮助文本更新: 列出所有支持的文件格式
+- Web UI 侧边栏更新: 显示支持的文件格式
+
+---
+
 ## [0.5.1] - 2026-05-07
 
 ### Changed

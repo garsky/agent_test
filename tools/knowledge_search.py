@@ -6,15 +6,13 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
 
 
-
-
 class KnowledgeSearchInput(BaseModel):
     query: str = Field(description="搜索查询内容")
 
 
 class KnowledgeSearchTool(BaseTool):
     name: str = "knowledge_search"
-    description: str = "检索当前平台知识库中的Camera驱动相关文档"
+    description: str = "检索当前平台知识库中的Camera驱动相关文档（含全局通用、厂商公共、平台专属三层）"
     args_schema: Type[BaseModel] = KnowledgeSearchInput
 
     platform_context: object = None
@@ -23,71 +21,134 @@ class KnowledgeSearchTool(BaseTool):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def _run(self, query: str) -> str:
-        retriever = self._get_retriever()
-        if retriever is None:
-            return self._fallback_search(query)
+        results = self._multi_level_search(query)
+        if results:
+            return results
+        return self._fallback_search(query)
 
-        try:
-            docs = retriever.invoke(query)
-            if not docs:
-                return f"知识库中未找到与 '{query}' 相关的内容"
-            results = []
-            for i, doc in enumerate(docs[:5], 1):
-                source = doc.metadata.get("source", "未知来源")
-                results.append(f"[{i}] 来源: {source}\n{doc.page_content[:500]}")
-            return "\n\n---\n\n".join(results)
-        except Exception as e:
-            return f"知识库检索出错: {e}\n{self._fallback_search(query)}"
-
-    def _get_retriever(self):
-        if self._retriever is not None:
-            return self._retriever
+    def _get_kb_inventory(self) -> str:
+        from knowledge.builder import get_all_doc_dirs
 
         if self.platform_context is None:
-            return None
+            return ""
+
+        vendor_id = self.platform_context.vendor.id
+        sub_platform_id = self.platform_context.sub_platform.id
+        doc_dirs = get_all_doc_dirs(vendor_id, sub_platform_id)
+
+        parts = []
+        for docs_dir in doc_dirs:
+            level = self._get_dir_level(docs_dir, vendor_id)
+            md_files = sorted(docs_dir.glob("*.md")) if docs_dir.exists() else []
+            txt_files = sorted(docs_dir.glob("*.txt")) if docs_dir.exists() else []
+            all_files = md_files + txt_files
+            if all_files:
+                file_list = ", ".join(f.name for f in all_files)
+                parts.append(f"[{level}] {file_list}")
+            else:
+                parts.append(f"[{level}] (空)")
+
+        return "\n".join(parts)
+
+    def _multi_level_search(self, query: str) -> str:
+        from knowledge.builder import get_all_vectorstore_dirs
+        from config.llm_config import LLMFactory, EmbeddingConfig
+
+        if self.platform_context is None:
+            return ""
 
         try:
-            import chromadb
-            from langchain_chroma import Chroma
-            from config.llm_config import LLMFactory, EmbeddingConfig
-
             embedding_config = EmbeddingConfig.from_settings()
             embeddings = LLMFactory.create_embeddings(embedding_config)
-
-            persist_dir = self.platform_context.sub_platform.knowledge_path + "/vectorstore"
-            collection_name = self.platform_context.chroma_collection_platform
-
-            db = Chroma(
-                collection_name=collection_name,
-                embedding_function=embeddings,
-                persist_directory=persist_dir,
-            )
-            self._retriever = db.as_retriever(search_kwargs={"k": 5})
-            return self._retriever
         except Exception:
-            return None
+            return ""
+
+        vendor_id = self.platform_context.vendor.id
+        sub_platform_id = self.platform_context.sub_platform.id
+        vs_dirs = get_all_vectorstore_dirs(vendor_id, sub_platform_id)
+
+        all_results = []
+        for vs_dir, collection_name in vs_dirs:
+            try:
+                from langchain_chroma import Chroma
+                db = Chroma(
+                    collection_name=collection_name,
+                    embedding_function=embeddings,
+                    persist_directory=str(vs_dir),
+                )
+                docs = db.similarity_search(query, k=3)
+                for doc in docs:
+                    source = doc.metadata.get("source", "未知来源")
+                    level = self._get_level_label(vs_dir, vendor_id, sub_platform_id)
+                    all_results.append((doc, source, level))
+            except Exception:
+                continue
+
+        if not all_results:
+            return ""
+
+        all_results.sort(key=lambda x: len(x[0].page_content), reverse=True)
+        seen = set()
+        output_parts = []
+        for doc, source, level in all_results[:8]:
+            content_key = doc.page_content[:200]
+            if content_key in seen:
+                continue
+            seen.add(content_key)
+            output_parts.append(f"[{level}] 来源: {source}\n{doc.page_content[:500]}")
+
+        return "\n\n---\n\n".join(output_parts)
+
+    def _get_level_label(self, vs_dir, vendor_id: str, sub_platform_id: str) -> str:
+        path_str = str(vs_dir).replace("\\", "/")
+        if "/common/vectorstore" in path_str and f"/{vendor_id}/" not in path_str:
+            return "全局"
+        elif f"/{vendor_id}/common/" in path_str:
+            return f"{vendor_id}公共"
+        else:
+            return "平台"
 
     def _fallback_search(self, query: str) -> str:
         if self.platform_context is None:
             return "未设置平台上下文，无法检索知识库"
 
         from pathlib import Path
-        docs_dir = Path(self.platform_context.sub_platform.knowledge_path) / "platform_docs"
-        if not docs_dir.exists():
-            return f"知识库目录不存在: {docs_dir}，请先构建知识库"
+        from knowledge.builder import get_all_doc_dirs
+
+        vendor_id = self.platform_context.vendor.id
+        sub_platform_id = self.platform_context.sub_platform.id
+        doc_dirs = get_all_doc_dirs(vendor_id, sub_platform_id)
 
         results = []
         query_lower = query.lower()
-        for doc_file in docs_dir.glob("*.md"):
-            content = doc_file.read_text(encoding="utf-8", errors="ignore")
-            if query_lower in content.lower():
-                idx = content.lower().index(query_lower)
-                start = max(0, idx - 200)
-                end = min(len(content), idx + 300)
-                snippet = content[start:end]
-                results.append(f"来源: {doc_file.name}\n...{snippet}...")
+        for docs_dir in doc_dirs:
+            level = self._get_dir_level(docs_dir, vendor_id)
+            for doc_file in docs_dir.glob("*.md"):
+                try:
+                    content = doc_file.read_text(encoding="utf-8", errors="ignore")
+                    if query_lower in content.lower():
+                        idx = content.lower().index(query_lower)
+                        start = max(0, idx - 200)
+                        end = min(len(content), idx + 300)
+                        snippet = content[start:end]
+                        results.append(f"[{level}] 来源: {doc_file.name}\n...{snippet}...")
+                except Exception:
+                    continue
 
         if not results:
-            return f"在知识库中未找到与 '{query}' 相关的内容"
+            inventory = self._get_kb_inventory()
+            msg = f"在知识库中未找到与 '{query}' 相关的内容。"
+            if inventory:
+                msg += f"\n\n当前知识库文档清单:\n{inventory}"
+            return msg
 
         return "\n\n---\n\n".join(results[:5])
+
+    def _get_dir_level(self, docs_dir, vendor_id: str) -> str:
+        path_str = str(docs_dir).replace("\\", "/")
+        if "/common/platform_docs" in path_str and f"/{vendor_id}/" not in path_str:
+            return "全局"
+        elif f"/{vendor_id}/common/" in path_str:
+            return f"{vendor_id}公共"
+        else:
+            return "平台"
