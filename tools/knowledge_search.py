@@ -26,6 +26,30 @@ class KnowledgeSearchTool(BaseTool):
             return results
         return self._fallback_search(query)
 
+    def _get_kb_inventory(self) -> str:
+        from knowledge.builder import get_all_doc_dirs
+
+        if self.platform_context is None:
+            return ""
+
+        vendor_id = self.platform_context.vendor.id
+        sub_platform_id = self.platform_context.sub_platform.id
+        doc_dirs = get_all_doc_dirs(vendor_id, sub_platform_id)
+
+        parts = []
+        for docs_dir in doc_dirs:
+            level = self._get_dir_level(docs_dir, vendor_id)
+            md_files = sorted(docs_dir.glob("*.md")) if docs_dir.exists() else []
+            txt_files = sorted(docs_dir.glob("*.txt")) if docs_dir.exists() else []
+            all_files = md_files + txt_files
+            if all_files:
+                file_list = ", ".join(f.name for f in all_files)
+                parts.append(f"[{level}] {file_list}")
+            else:
+                parts.append(f"[{level}] (空)")
+
+        return "\n".join(parts)
+
     def _multi_level_search(self, query: str) -> str:
         from knowledge.builder import get_all_vectorstore_dirs
         from config.llm_config import LLMFactory, EmbeddingConfig
@@ -112,7 +136,11 @@ class KnowledgeSearchTool(BaseTool):
                     continue
 
         if not results:
-            return f"在知识库中未找到与 '{query}' 相关的内容"
+            inventory = self._get_kb_inventory()
+            msg = f"在知识库中未找到与 '{query}' 相关的内容。"
+            if inventory:
+                msg += f"\n\n当前知识库文档清单:\n{inventory}"
+            return msg
 
         return "\n\n---\n\n".join(results[:5])
 

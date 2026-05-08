@@ -4,6 +4,23 @@
 
 ---
 
+## [1.0.3] - 2026-05-07
+
+### Added
+- CLI Tab 补全: 输入命令时按 Tab 自动补全
+  - 支持所有内置命令补全 (quit/reset/switch/help/config/kb/platform)
+  - `kb add` 后按 Tab 补全文件名和路径 (支持 .md/.txt/.pdf/.docx/.pptx/.xlsx)
+  - `kb` / `platform` 后按 Tab 补全子命令
+  - 依赖 `pyreadline3` (Windows) / `readline` (Linux/Mac)
+- 知识库无匹配时的回答策略优化:
+  - 搜索无匹配时返回知识库文档清单，便于 Agent 引用已有文档
+  - System Prompt 增加"无匹配回答规范": 禁止猜测、说明知识范畴、引用已有文档、指出缺失文档、给出排查方向
+
+### Fixed
+- `LangChainPendingDeprecationWarning` 警告抑制: 显式导入 `LangChainPendingDeprecationWarning` 并过滤
+
+---
+
 ## [1.0.2] - 2026-05-07
 
 ### Fixed
@@ -11,6 +28,10 @@
   - 新增黑名单机制: `removed_vendors` / `removed_sub_platforms` 持久化到 `platforms.yaml`
   - `_discover_from_directory()` 跳过黑名单中的厂商和子平台
   - 重新添加时自动从黑名单中移除 (`discard`)
+- YAML 配置加载时检查目录存在性: 本地目录已删除的厂商/子平台不再从 `platforms.yaml` 加载
+- 内置注册表加载时检查目录存在性: `_load_builtin_registry()` 只注册磁盘上实际存在的子平台
+  - 修复 MTK 显示3个子平台但磁盘只有 mt6985 的问题
+- `.gitignore` 更新: 排除 knowledge 下的数据文件(PDF/DOCX/vectorstore/platforms.yaml)，保留手写MD和目录结构(.gitkeep)
 
 ---
 

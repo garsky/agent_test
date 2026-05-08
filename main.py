@@ -15,9 +15,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from utils.completer import setup_readline
+setup_readline()
+
 WELCOME_BANNER = """
 ╔══════════════════════════════════════════════════════════╗
-║        Camera Driver Agent (CDA) v1.0.2                  ║
+║        Camera Driver Agent (CDA) v1.0.3                  ║
 ║        手机 Camera 驱动工程师智能助手                     ║
 ╚══════════════════════════════════════════════════════════╝
 """
@@ -35,6 +38,10 @@ HELP_TEXT = """
 ║    kb         知识库管理 (输入 kb 查看详情)               ║
 ║    platform   平台管理 (输入 platform 查看详情)           ║
 ║    config     查看当前配置                                ║
+║                                                          ║
+║  Tab补全:                                                 ║
+║    输入命令时按Tab自动补全                                ║
+║    kb add 后按Tab补全文件名/路径                          ║
 ║                                                          ║
 ║  提问技巧:                                                ║
 ║    1. 描述问题时附上平台信息                              ║
