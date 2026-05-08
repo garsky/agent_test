@@ -5,6 +5,11 @@ import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langgraph")
 warnings.filterwarnings("ignore", message=".*allowed_objects.*")
+try:
+    from langchain_core._api.deprecation import LangChainPendingDeprecationWarning
+    warnings.filterwarnings("ignore", category=LangChainPendingDeprecationWarning)
+except ImportError:
+    pass
 
 from dotenv import load_dotenv
 
