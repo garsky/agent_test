@@ -152,8 +152,11 @@ class LLMFactory:
             from langchain_huggingface import HuggingFaceEmbeddings
 
             os.environ.setdefault("HF_HUB_OFFLINE", "1")
+            os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+            os.environ.setdefault("TQDM_DISABLE", "1")
             return HuggingFaceEmbeddings(
                 model_name=config.model or "shibing624/text2vec-base-chinese",
+                show_progress=False,
             )
 
         else:

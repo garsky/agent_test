@@ -1,8 +1,9 @@
 ﻿from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Generator
 
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import AIMessageChunk, ToolMessage
 from langgraph.prebuilt import create_react_agent
 
 from agent.prompts import build_system_prompt
@@ -95,6 +96,55 @@ class CameraDriverAgent:
 
         self._memory.add_ai_message(response)
         return response
+
+    def chat_stream(self, message: str) -> Generator[str, None, None]:
+        self._memory.add_user_message(message)
+        graph = self._build_agent()
+
+        full_response = ""
+        in_tool_call = False
+
+        for event in graph.stream(
+            {"messages": [("user", message)]},
+            stream_mode=["messages", "updates"],
+        ):
+            if isinstance(event, tuple) and len(event) == 2:
+                mode, payload = event
+            else:
+                continue
+
+            if mode == "messages":
+                msg, metadata = payload
+                if isinstance(msg, AIMessageChunk):
+                    if msg.content:
+                        full_response += msg.content
+                        yield msg.content
+                    if msg.tool_call_chunks:
+                        for chunk in msg.tool_call_chunks:
+                            if chunk.get("name") and not in_tool_call:
+                                in_tool_call = True
+                                tool_name = chunk.get("name", "")
+                                yield f"\n  [调用工具: {tool_name}]\n"
+                            if chunk.get("args"):
+                                pass
+                elif isinstance(msg, ToolMessage):
+                    in_tool_call = False
+                    tool_name = metadata.get("langgraph_node", "tools")
+                    yield f"  [工具结果: {tool_name}]\n"
+
+            elif mode == "updates":
+                if isinstance(payload, dict):
+                    for node_name, update in payload.items():
+                        if node_name == "tools":
+                            msgs = update.get("messages", [])
+                            for m in msgs:
+                                if isinstance(m, ToolMessage):
+                                    yield f"  [工具执行完成]\n"
+
+        if not full_response:
+            full_response = "抱歉，无法生成回复"
+
+        self._memory.add_ai_message(full_response)
 
     def set_platform_context(self, context: PlatformContext) -> None:
         self._platform_context = context

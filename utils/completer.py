@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 try:
     import readline
@@ -52,18 +51,20 @@ class CDACompleter:
         return self._complete_file_path(text, line)
 
     def _complete_file_path(self, text: str, line: str) -> list[str]:
-        prefix = line.split(" ", 2)[-1] if " --" not in line else text
-        if not prefix:
-            prefix = ""
+        path_part = line.split(" ", 2)[-1]
+        for flag in ("--global", "--vendor"):
+            path_part = path_part.replace(flag, "").strip()
+        if not path_part:
+            path_part = ""
 
-        expanded = os.path.expanduser(prefix)
+        expanded = os.path.expanduser(path_part)
         expanded = os.path.expandvars(expanded)
 
         if not expanded:
             search_dir = "."
             base_name = ""
         elif expanded.endswith(os.sep) or expanded.endswith("/"):
-            search_dir = expanded
+            search_dir = expanded.rstrip(os.sep).rstrip("/") or os.sep
             base_name = ""
         else:
             search_dir = os.path.dirname(expanded) or "."
@@ -78,14 +79,19 @@ class CDACompleter:
         for entry in sorted(entries):
             if entry.startswith(".") and not base_name.startswith("."):
                 continue
+            if entry == "__pycache__":
+                continue
             if not entry.startswith(base_name):
                 continue
             full = os.path.join(search_dir, entry)
             if os.path.isdir(full):
-                matches.append(entry + os.sep)
+                display = os.path.join(os.path.dirname(path_part), entry) if os.path.dirname(path_part) else entry
+                display = display.rstrip(os.sep) + os.sep
+                matches.append(display)
             else:
                 if entry.lower().endswith((".md", ".txt", ".pdf", ".docx", ".pptx", ".xlsx")):
-                    matches.append(entry)
+                    display = os.path.join(os.path.dirname(path_part), entry) if os.path.dirname(path_part) else entry
+                    matches.append(display)
 
         return matches
 

@@ -1,7 +1,11 @@
 ﻿from __future__ import annotations
 
+import os
 import sys
 import warnings
+
+os.environ.setdefault("TQDM_DISABLE", "1")
+os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langgraph")
 warnings.filterwarnings("ignore", message=".*allowed_objects.*")
@@ -20,7 +24,7 @@ setup_readline()
 
 WELCOME_BANNER = """
 ╔══════════════════════════════════════════════════════════╗
-║        Camera Driver Agent (CDA) v1.0.3                  ║
+║        Camera Driver Agent (CDA) v1.0.4                  ║
 ║        手机 Camera 驱动工程师智能助手                     ║
 ╚══════════════════════════════════════════════════════════╝
 """
@@ -551,8 +555,9 @@ def run_cli():
 
         print("\nAgent: ", end="", flush=True)
         try:
-            response = agent.chat_sync(user_input)
-            print(response)
+            for chunk in agent.chat_stream(user_input):
+                print(chunk, end="", flush=True)
+            print()
         except Exception as e:
             print(f"错误: {e}")
         print()
